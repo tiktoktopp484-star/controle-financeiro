@@ -1,17 +1,17 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import {
+  boolean,
+  decimal,
+  int,
+  mysqlEnum,
+  mysqlTable,
+  text,
+  timestamp,
+  varchar,
+  date,
+} from "drizzle-orm/mysql-core";
 
-/**
- * Core user table backing auth flow.
- * Extend this file with additional tables as your product grows.
- * Columns use camelCase to match both database fields and generated types.
- */
 export const users = mysqlTable("users", {
-  /**
-   * Surrogate primary key. Auto-incremented numeric value managed by the database.
-   * Use this for relations between tables.
-   */
   id: int("id").autoincrement().primaryKey(),
-  /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
@@ -25,4 +25,94 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+// Salários
+export const salaries = mysqlTable("salaries", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  value: decimal("value", { precision: 15, scale: 2 }).notNull(),
+  description: varchar("description", { length: 255 }).default("Salário"),
+  date: date("date").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Salary = typeof salaries.$inferSelect;
+export type InsertSalary = typeof salaries.$inferInsert;
+
+// Despesas
+export const expenses = mysqlTable("expenses", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  description: varchar("description", { length: 255 }).notNull(),
+  value: decimal("value", { precision: 15, scale: 2 }).notNull(),
+  category: mysqlEnum("category", [
+    "Alimentação",
+    "Transporte",
+    "Saúde",
+    "Lazer",
+    "Educação",
+    "Casa",
+    "Outros",
+  ])
+    .default("Outros")
+    .notNull(),
+  date: date("date").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Expense = typeof expenses.$inferSelect;
+export type InsertExpense = typeof expenses.$inferInsert;
+
+// Receitas extras
+export const incomes = mysqlTable("incomes", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  description: varchar("description", { length: 255 }).notNull(),
+  value: decimal("value", { precision: 15, scale: 2 }).notNull(),
+  date: date("date").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Income = typeof incomes.$inferSelect;
+export type InsertIncome = typeof incomes.$inferInsert;
+
+// Dívidas
+export const debts = mysqlTable("debts", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  description: varchar("description", { length: 255 }).notNull(),
+  value: decimal("value", { precision: 15, scale: 2 }).notNull(),
+  type: mysqlEnum("type", [
+    "Empréstimo",
+    "Cartão",
+    "Boleto",
+    "Pessoa Física",
+    "Financiamento",
+    "Outros",
+  ])
+    .default("Outros")
+    .notNull(),
+  dueDate: date("dueDate").notNull(),
+  paid: boolean("paid").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Debt = typeof debts.$inferSelect;
+export type InsertDebt = typeof debts.$inferInsert;
+
+// Cartão de crédito
+export const cards = mysqlTable("cards", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  description: varchar("description", { length: 255 }).notNull(),
+  value: decimal("value", { precision: 15, scale: 2 }).notNull(),
+  flag: mysqlEnum("flag", ["Visa", "Mastercard", "Elo", "Hipercard"])
+    .default("Visa")
+    .notNull(),
+  installments: int("installments").default(1).notNull(),
+  creditLimit: decimal("creditLimit", { precision: 15, scale: 2 }).default("0").notNull(),
+  date: date("date").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Card = typeof cards.$inferSelect;
+export type InsertCard = typeof cards.$inferInsert;
