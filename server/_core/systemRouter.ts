@@ -34,9 +34,8 @@ export const systemRouter = router({
         userLookup = "error: " + e.message;
       }
     }
-    // Test session verification
-    let verifyResult: any = "not_tested";
-    let jwtVerifyError: any = null;
+    let jwtResult: any = "not_tested";
+    let sdkResult: any = "not_tested";
     try {
       const sessionCookie = (() => {
         const parts = cookie.split(";");
@@ -51,20 +50,16 @@ export const systemRouter = router({
       if (sessionCookie) {
         const rawSecret = process.env.JWT_SECRET || "";
         const secretKey = new TextEncoder().encode(rawSecret);
-        try {
-          const result = await jwtVerify(sessionCookie, secretKey, { algorithms: ["HS256"] });
-          verifyResult = { openId: result.payload.openId, jwtPayload: result.payload };
-        } catch (jwtError: any) {
-          jwtVerifyError = jwtError.message; // "Zero-length key" or other
-          verifyResult = await sdk.verifySession(sessionCookie);
-        }
+        const result = await jwtVerify(sessionCookie, secretKey, { algorithms: ["HS256"] });
+        jwtResult = { openId: result.payload.openId };
+        sdkResult = await sdk.verifySession(sessionCookie);
       } else {
-        verifyResult = "no_session_cookie";
+        jwtResult = "no_session_cookie";
+        sdkResult = "no_session_cookie";
       }
     } catch (e: any) {
-      verifyResult = "error: " + e.message;
+      jwtResult = "jwt_error: " + e.message;
     }
-    // Test full auth
     let authResult: any = "not_tested";
     try {
       const user = await sdk.authenticateRequest(ctx.req);
@@ -78,7 +73,8 @@ export const systemRouter = router({
       dbStatus,
       userLookup,
       envHasJwt: !!process.env.JWT_SECRET,
-      verifyResult,
+      jwtResult,
+      sdkVerifyResult: sdkResult,
       authResult,
     };
   }),
