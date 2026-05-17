@@ -1,10 +1,12 @@
 import { z } from "zod";
 import { jwtVerify } from "jose";
+import { parse as parseCookieHeader } from "cookie";
 import { notifyOwner } from "./notification";
 import { adminProcedure, publicProcedure, router } from "./trpc";
 import { getDb } from "../db";
 import { users } from "../../drizzle/schema";
 import { sdk } from "./sdk";
+import { COOKIE_NAME } from "@shared/const";
 
 export const systemRouter = router({
   health: publicProcedure
@@ -36,29 +38,38 @@ export const systemRouter = router({
     }
     let jwtResult: any = "not_tested";
     let sdkResult: any = "not_tested";
+    let parsedCookieValue: any = null;
+    let manualCookieValue: any = null;
     try {
-      const sessionCookie = (() => {
-        const parts = cookie.split(";");
-        for (const p of parts) {
-          const idx = p.indexOf("=");
-          if (idx > 0 && p.substring(0, idx).trim() === "app_session_id") {
-            return p.substring(idx + 1).trim();
-          }
+      // Parsed via cookie library (what SDK uses)
+      const parsedRaw = parseCookieHeader(cookie);
+      parsedCookieValue = Object.entries(parsedRaw);
+      parsedCookieValue = parsedRaw[COOKIE_NAME] || null;
+
+      // Manual parse
+      const parts = cookie.split(";");
+      for (const p of parts) {
+        const idx = p.indexOf("=");
+        if (idx > 0 && p.substring(0, idx).trim() === COOKIE_NAME) {
+          manualCookieValue = p.substring(idx + 1).trim();
+          break;
         }
-        return null;
-      })();
-      if (sessionCookie) {
+      }
+
+      if (parsedCookieValue) {
         const rawSecret = process.env.JWT_SECRET || "";
         const secretKey = new TextEncoder().encode(rawSecret);
-        const result = await jwtVerify(sessionCookie, secretKey, { algorithms: ["HS256"] });
-        jwtResult = { openId: result.payload.openId };
-        sdkResult = await sdk.verifySession(sessionCookie);
+        const result = await jwtVerify(parsedCookieValue, secretKey, { algorithms: ["HS256"] });
+        jwtResult = {
+          openId: result.payload.openId,
+          valueSame: parsedCookieValue === manualCookieValue,
+        };
+        sdkResult = await sdk.verifySession(parsedCookieValue);
       } else {
-        jwtResult = "no_session_cookie";
-        sdkResult = "no_session_cookie";
+        jwtResult = "no_cookie";
       }
     } catch (e: any) {
-      jwtResult = "jwt_error: " + e.message;
+      jwtResult = "error: " + e.message;
     }
     let authResult: any = "not_tested";
     try {
@@ -73,6 +84,8 @@ export const systemRouter = router({
       dbStatus,
       userLookup,
       envHasJwt: !!process.env.JWT_SECRET,
+      parsedCookieValue,
+      manualCookieValue,
       jwtResult,
       sdkVerifyResult: sdkResult,
       authResult,
