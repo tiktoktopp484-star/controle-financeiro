@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { jwtVerify } from "jose";
 import { notifyOwner } from "./notification";
 import { adminProcedure, publicProcedure, router } from "./trpc";
 import { getDb } from "../db";
@@ -35,18 +36,28 @@ export const systemRouter = router({
     }
     // Test session verification
     let verifyResult: any = "not_tested";
+    let jwtVerifyError: any = null;
     try {
-      const cookies = new Map(Object.entries(
-        Object.fromEntries(
-          cookie.split(";").filter(Boolean).map((c: string) => {
-            const eqIdx = c.indexOf("=");
-            return [c.substring(0, eqIdx).trim(), c.substring(eqIdx + 1).trim()];
-          })
-        )
-      ));
-      const sessionCookie = cookies.get("app_session_id") || null;
+      const sessionCookie = (() => {
+        const parts = cookie.split(";");
+        for (const p of parts) {
+          const idx = p.indexOf("=");
+          if (idx > 0 && p.substring(0, idx).trim() === "app_session_id") {
+            return p.substring(idx + 1).trim();
+          }
+        }
+        return null;
+      })();
       if (sessionCookie) {
-        verifyResult = await sdk.verifySession(sessionCookie);
+        const rawSecret = process.env.JWT_SECRET || "";
+        const secretKey = new TextEncoder().encode(rawSecret);
+        try {
+          const result = await jwtVerify(sessionCookie, secretKey, { algorithms: ["HS256"] });
+          verifyResult = { openId: result.payload.openId, jwtPayload: result.payload };
+        } catch (jwtError: any) {
+          jwtVerifyError = jwtError.message; // "Zero-length key" or other
+          verifyResult = await sdk.verifySession(sessionCookie);
+        }
       } else {
         verifyResult = "no_session_cookie";
       }
