@@ -38,31 +38,27 @@ export const systemRouter = router({
     }
     let jwtResult: any = "not_tested";
     let sdkResult: any = "not_tested";
+    let secretComparison: any = null;
     let parsedCookieValue: any = null;
-    let manualCookieValue: any = null;
     try {
-      // Parsed via cookie library (what SDK uses)
       const parsedRaw = parseCookieHeader(cookie);
-      parsedCookieValue = Object.entries(parsedRaw);
       parsedCookieValue = parsedRaw[COOKIE_NAME] || null;
-
-      // Manual parse
-      const parts = cookie.split(";");
-      for (const p of parts) {
-        const idx = p.indexOf("=");
-        if (idx > 0 && p.substring(0, idx).trim() === COOKIE_NAME) {
-          manualCookieValue = p.substring(idx + 1).trim();
-          break;
-        }
-      }
 
       if (parsedCookieValue) {
         const rawSecret = process.env.JWT_SECRET || "";
-        const secretKey = new TextEncoder().encode(rawSecret);
-        const result = await jwtVerify(parsedCookieValue, secretKey, { algorithms: ["HS256"] });
+        const directKey = new TextEncoder().encode(rawSecret);
+        const sdkKey = (sdk as any).getSessionSecret();
+        secretComparison = {
+          rawSecretLength: rawSecret.length,
+          directKeyBytes: directKey.byteLength,
+          sdkKeyBytes: sdkKey.byteLength,
+          keysEqual: directKey.byteLength === sdkKey.byteLength && directKey.every((b: number, i: number) => b === sdkKey[i]),
+          firstBytes: Array.from(directKey.slice(0, 10)),
+          sdkFirstBytes: Array.from(sdkKey.slice(0, 10)),
+        };
+        const result = await jwtVerify(parsedCookieValue, directKey, { algorithms: ["HS256"] });
         jwtResult = {
           openId: result.payload.openId,
-          valueSame: parsedCookieValue === manualCookieValue,
         };
         sdkResult = await sdk.verifySession(parsedCookieValue);
       } else {
@@ -70,6 +66,7 @@ export const systemRouter = router({
       }
     } catch (e: any) {
       jwtResult = "error: " + e.message;
+      if (e.stack) jwtResult += " | " + e.stack.split("\n")[1];
     }
     let authResult: any = "not_tested";
     try {
@@ -85,7 +82,7 @@ export const systemRouter = router({
       userLookup,
       envHasJwt: !!process.env.JWT_SECRET,
       parsedCookieValue,
-      manualCookieValue,
+      secretComparison,
       jwtResult,
       sdkVerifyResult: sdkResult,
       authResult,
