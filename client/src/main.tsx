@@ -5,8 +5,17 @@ import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
-import { getLoginUrl } from "./const";
 import "./index.css";
+
+// Hide Capacitor splash screen after app renders
+setTimeout(async () => {
+  try {
+    const { SplashScreen } = await import("@capacitor/splash-screen");
+    await SplashScreen.hide();
+  } catch {
+    // not running in Capacitor native context
+  }
+}, 3000);
 
 const queryClient = new QueryClient();
 
@@ -18,7 +27,7 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
 
   if (!isUnauthorized) return;
 
-  window.location.href = getLoginUrl();
+  window.location.href = "/";
 };
 
 queryClient.getQueryCache().subscribe(event => {
@@ -37,16 +46,22 @@ queryClient.getMutationCache().subscribe(event => {
   }
 });
 
+const apiBase = import.meta.env.VITE_API_URL ?? "";
+const apiUrl = apiBase ? `${apiBase}/api/trpc` : "/api/trpc";
+
 const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
-      url: "/api/trpc",
+      url: apiUrl,
       transformer: superjson,
       fetch(input, init) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
         return globalThis.fetch(input, {
           ...(init ?? {}),
           credentials: "include",
-        });
+          signal: controller.signal,
+        }).finally(() => clearTimeout(timeout));
       },
     }),
   ],

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
 
 const CATEGORIES = [
@@ -19,10 +20,15 @@ function fmt(v: number) {
 }
 
 export default function Despesas() {
+  const { user } = useAuth();
   const [selCat, setSelCat] = useState<Category>("Outros");
   const [desc, setDesc] = useState("");
   const [val, setVal] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const utils = trpc.useUtils();
   const { data: expenses = [], isLoading } = trpc.expenses.list.useQuery();
@@ -30,10 +36,18 @@ export default function Despesas() {
   const addMut = trpc.expenses.add.useMutation({
     onSuccess: () => {
       utils.expenses.list.invalidate();
-      setDesc(""); setVal("");
+      setDesc(""); setVal(""); setReceiptFile(null); setReceiptPreview(null);
       toast.success("Despesa adicionada!");
     },
     onError: () => toast.error("Erro ao adicionar despesa"),
+  });
+
+  const uploadMut = trpc.expenses.uploadReceipt.useMutation({
+    onSuccess: () => {
+      utils.expenses.list.invalidate();
+      toast.success("Comprovante anexado!");
+    },
+    onError: () => toast.error("Erro ao anexar comprovante"),
   });
 
   const delMut = trpc.expenses.delete.useMutation({
@@ -47,10 +61,37 @@ export default function Despesas() {
     onSettled: () => utils.expenses.list.invalidate(),
   });
 
-  const handleAdd = () => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!["image/png", "image/jpeg", "image/gif", "image/webp"].includes(file.type)) {
+      toast.error("Apenas imagens (PNG, JPG, GIF, WebP)");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Imagem muito grande (max 5MB)");
+      return;
+    }
+    setReceiptFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setReceiptPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleAdd = async () => {
     const v = parseFloat(val);
     if (!desc.trim() || !v || v <= 0) { toast.error("Preencha todos os campos"); return; }
-    addMut.mutate({ description: desc.trim(), value: v, category: selCat, date });
+
+    addMut.mutate(
+      { description: desc.trim(), value: v, category: selCat, date },
+      {
+        onSuccess: async (data) => {
+          if (receiptPreview && data.id) {
+            uploadMut.mutate({ expenseId: data.id, base64: receiptPreview });
+          }
+        },
+      }
+    );
   };
 
   const catColor = (cat: string) => CATEGORIES.find((c) => c.key === cat)?.color ?? "#7F8C8D";
@@ -101,13 +142,53 @@ export default function Despesas() {
           />
         </div>
 
+        {/* Receipt upload */}
+        {user?.premium && (
+          <div className="mb-2">
+            <div
+              className="fin-input flex items-center gap-2 cursor-pointer"
+              onClick={() => fileRef.current?.click()}
+              style={{ padding: "8px 12px", minHeight: 42 }}
+            >
+              <span style={{ color: "#C9A84C" }}>📎</span>
+              <span className="text-sm flex-1" style={{ color: receiptFile ? "#1A2744" : "#A09880" }}>
+                {receiptFile ? receiptFile.name : "Anexar comprovante (opcional)"}
+              </span>
+              {receiptPreview && (
+                <img
+                  src={receiptPreview}
+                  alt="preview"
+                  className="rounded"
+                  style={{ width: 32, height: 32, objectFit: "cover" }}
+                />
+              )}
+              {receiptFile && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setReceiptFile(null); setReceiptPreview(null); }}
+                  className="text-xs"
+                  style={{ color: "#C0392B" }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+          </div>
+        )}
+
         <button
           onClick={handleAdd}
           disabled={addMut.isPending}
           className="w-full py-3 rounded-xl font-semibold text-base mt-2 transition-all active:scale-95 disabled:opacity-60"
           style={{ background: "#C0392B", color: "#fff" }}
         >
-          {addMut.isPending ? "Adicionando..." : "➕ Adicionar Despesa"}
+          {addMut.isPending ? "Adicionando..." : (receiptFile ? "📎 " : "") + "Adicionar Despesa"}
         </button>
       </div>
 
@@ -137,7 +218,10 @@ export default function Despesas() {
                   />
                   <div className="min-w-0">
                     <p className="text-sm font-semibold truncate" style={{ color: "#1A2744" }}>{e.description}</p>
-                    <p className="text-xs" style={{ color: "#A09880" }}>{e.category} · {e.date}</p>
+                    <p className="text-xs" style={{ color: "#A09880" }}>
+                      {e.category} · {e.date}
+                      {e.receiptUrl && <span className="ml-2 cursor-pointer" style={{ color: "#C9A84C" }} onClick={() => setSelectedReceipt(e.receiptUrl)}>📎</span>}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -149,6 +233,34 @@ export default function Despesas() {
           </div>
         )}
       </div>
+
+      {/* Receipt modal */}
+      {selectedReceipt && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
+          onClick={() => setSelectedReceipt(null)}
+        >
+          <div
+            className="relative max-w-lg max-h-[80vh] rounded-xl overflow-hidden"
+            style={{ background: "#F8F3E8" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setSelectedReceipt(null)}
+              className="absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold z-10"
+              style={{ background: "rgba(0,0,0,0.5)", color: "#fff" }}
+            >
+              ✕
+            </button>
+            <img
+              src={selectedReceipt}
+              alt="Comprovante"
+              className="max-w-full max-h-[75vh] object-contain"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

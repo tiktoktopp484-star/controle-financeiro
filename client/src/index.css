@@ -430,3 +430,60 @@
     font-size: 14px;
   }
 }
+
+/* ── Dark mode overrides ─────────────────────────────────────────────── */
+.dark .sacred-bg {
+  background-color: #0f172a;
+}
+
+.dark .tab-bar {
+  background: #1e293b;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+
+.dark .section-card {
+  background: #1e293b;
+  border-color: rgba(201,168,76,0.2);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+}
+
+.dark .summary-card {
+  background: #1e293b;
+  border-color: rgba(201,168,76,0.2);
+}
+
+.dark .fin-input {
+  background: #1e293b;
+  border-color: rgba(201,168,76,0.3);
+  color: #e2e8f0;
+}
+.dark .fin-input:focus { background: #334155; }
+
+.dark .item-row {
+  background: #1e293b;
+  border-color: rgba(201,168,76,0.15);
+}
+
+.dark .debt-item {
+  background: #1e293b;
+  border-color: rgba(201,168,76,0.15);
+}
+
+.dark .cat-pill {
+  background: #334155;
+  color: #cbd5e1;
+}
+
+.dark .cal-cell {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+.dark .cal-cell:active { background: #334155; }
+.dark .cal-cell.today { background: rgba(26,39,68,0.6); border-color: var(--gold); }
+.dark .cal-cell.today .dnum { color: var(--gold-light); }
+.dark .cal-cell.sel-day { background: var(--gold); color: #1A2744; border-color: var(--gold); }
+.dark .cal-cell.sel-day .dnum { color: #1A2744; }
+
+.dark .limit-bar-track { background: #334155; }
+
+.dark .spinner { border-color: #334155; border-top-color: var(--gold); }

@@ -26,6 +26,19 @@ export async function getDb() {
   return _db;
 }
 
+export async function disableExpiredPremium(userId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const result = await db.select({ premiumUntil: users.premiumUntil }).from(users).where(eq(users.id, userId)).limit(1);
+  if (result.length === 0) return false;
+  const until = result[0].premiumUntil;
+  if (until && new Date(until) <= new Date()) {
+    await db.update(users).set({ premium: false, premiumUntil: null }).where(eq(users.id, userId));
+    return true;
+  }
+  return false;
+}
+
 export async function upsertUser(user: InsertUser): Promise<void> {
   if (!user.openId) throw new Error("User openId is required for upsert");
   const db = await getDb();
@@ -60,6 +73,13 @@ export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) return undefined;
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
   return result.length > 0 ? result[0] : undefined;
 }
 
@@ -98,7 +118,14 @@ export async function addExpense(
 ) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
-  await db.insert(expenses).values({ userId, description, value, category, date: new Date(date) });
+  const result = await db.insert(expenses).values({ userId, description, value, category, date: new Date(date) });
+  return { id: Number(result[0].insertId) };
+}
+
+export async function updateExpenseReceipt(id: number, userId: number, receiptUrl: string | null) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.update(expenses).set({ receiptUrl }).where(and(eq(expenses.id, id), eq(expenses.userId, userId)));
 }
 
 export async function deleteExpense(id: number, userId: number) {

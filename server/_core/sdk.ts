@@ -297,7 +297,8 @@ class SDKServer {
       lastSignedIn: signedInAt,
     });
 
-    return user;
+    const { passwordHash: _, ...safeUser } = user;
+    return safeUser as User;
   }
 }
 

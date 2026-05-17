@@ -22,6 +22,34 @@
       "when": 1778145188171,
       "tag": "0002_legal_slipstream",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1779020937801,
+      "tag": "0003_chunky_talos",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1779027458759,
+      "tag": "0004_aberrant_patriot",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1779032261998,
+      "tag": "0005_pink_newton_destine",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1779032570205,
+      "tag": "0006_freezing_daredevil",
+      "breakpoints": true
     }
   ]
 }
