@@ -11,11 +11,10 @@ import { serveStatic, setupVite } from "./vite";
 import { getUploadsDir } from "../localUpload";
 
 const ALLOWED_ORIGINS = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-  "http://localhost",
-  "capacitor://localhost",
   "https://controle-financeiro-x7lb.onrender.com",
+  "capacitor://localhost",
+  "http://localhost",
+  "https://localhost",
 ];
 const isOriginAllowed = (origin: string | undefined) =>
   origin ? ALLOWED_ORIGINS.some((a) => origin.startsWith(a)) : true;

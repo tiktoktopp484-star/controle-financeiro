@@ -9,6 +9,7 @@ build/
 
 # Environment variables
 .env
+android/keystore.properties
 .env.local
 .env.development.local
 .env.test.local
