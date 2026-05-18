@@ -7,7 +7,7 @@ CREATE TABLE `cards` (
 	`installments` int NOT NULL DEFAULT 1,
 	`creditLimit` decimal(15,2) NOT NULL DEFAULT '0',
 	`date` date NOT NULL,
-	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	CONSTRAINT `cards_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
@@ -19,7 +19,7 @@ CREATE TABLE `debts` (
 	`type` enum('Empréstimo','Cartão','Boleto','Pessoa Física','Financiamento','Outros') NOT NULL DEFAULT 'Outros',
 	`dueDate` date NOT NULL,
 	`paid` boolean NOT NULL DEFAULT false,
-	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	CONSTRAINT `debts_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
@@ -30,7 +30,7 @@ CREATE TABLE `expenses` (
 	`value` decimal(15,2) NOT NULL,
 	`category` enum('Alimentação','Transporte','Saúde','Lazer','Educação','Casa','Outros') NOT NULL DEFAULT 'Outros',
 	`date` date NOT NULL,
-	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	CONSTRAINT `expenses_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
@@ -40,7 +40,7 @@ CREATE TABLE `incomes` (
 	`description` varchar(255) NOT NULL,
 	`value` decimal(15,2) NOT NULL,
 	`date` date NOT NULL,
-	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	CONSTRAINT `incomes_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
@@ -50,6 +50,6 @@ CREATE TABLE `salaries` (
 	`value` decimal(15,2) NOT NULL,
 	`description` varchar(255) DEFAULT 'Salário',
 	`date` date NOT NULL,
-	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	CONSTRAINT `salaries_id` PRIMARY KEY(`id`)
 );

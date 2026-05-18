@@ -7,7 +7,15 @@ import superjson from "superjson";
 import App from "./App";
 import "./index.css";
 
-// Hide Capacitor splash screen after app renders
+// Hide Capacitor splash screen as early as possible
+(async () => {
+  try {
+    const { SplashScreen } = await import("@capacitor/splash-screen");
+    await SplashScreen.hide();
+  } catch {
+    // not running in Capacitor native context
+  }
+})();
 setTimeout(async () => {
   try {
     const { SplashScreen } = await import("@capacitor/splash-screen");
@@ -15,7 +23,7 @@ setTimeout(async () => {
   } catch {
     // not running in Capacitor native context
   }
-}, 3000);
+}, 2000);
 
 const queryClient = new QueryClient();
 

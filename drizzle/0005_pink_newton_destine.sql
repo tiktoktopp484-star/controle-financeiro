@@ -1,1 +1,1 @@
-ALTER TABLE `users` ADD `premiumUntil` timestamp;
+ALTER TABLE `users` ADD `premiumUntil` timestamp NULL;

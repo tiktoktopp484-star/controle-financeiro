@@ -8,7 +8,7 @@ CREATE TABLE `goals` (
 	`category` enum('Viagem','Casa','Carro','Educacao','Saude','Lazer','Outros') NOT NULL DEFAULT 'Outros',
 	`dueDate` date,
 	`completed` boolean NOT NULL DEFAULT false,
-	`createdAt` timestamp NOT NULL DEFAULT (now()),
-	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	`createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	CONSTRAINT `goals_id` PRIMARY KEY(`id`)
 );
