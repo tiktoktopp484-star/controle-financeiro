@@ -10,9 +10,35 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { getUploadsDir } from "../localUpload";
 
+const ALLOWED_ORIGINS = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://localhost",
+  "capacitor://localhost",
+  "https://controle-financeiro-x7lb.onrender.com",
+];
+const isOriginAllowed = (origin: string | undefined) =>
+  origin ? ALLOWED_ORIGINS.some((a) => origin.startsWith(a)) : true;
+
 async function startServer() {
   const app = express();
   const server = createServer(app);
+  app.set("trust proxy", 1);
+  // CORS middleware (must be before routes)
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin && isOriginAllowed(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, trpc-accept");
+    }
+    if (req.method === "OPTIONS") {
+      res.status(204).end();
+      return;
+    }
+    next();
+  });
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
