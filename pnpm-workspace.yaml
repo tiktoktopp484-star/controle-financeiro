@@ -1,1 +1,5 @@
-onlyBuiltDependencies: '[@firebase/util,protobufjs]'
+packages:
+  - '.'
+onlyBuiltDependencies:
+  - '@firebase/util'
+  - 'protobufjs'
