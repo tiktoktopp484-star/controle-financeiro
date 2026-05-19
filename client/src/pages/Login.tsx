@@ -13,30 +13,24 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
 
+  function onAuthError(err: unknown, fallback: string) {
+    const msg = err instanceof TRPCClientError ? err.message : "";
+    const isNetworkError = !msg || msg.includes("fetch") || msg.includes("abort") || msg.includes("network");
+    toast.error(isNetworkError ? fallback : msg);
+  }
+
   const loginMut = trpc.auth.login.useMutation({
     onSuccess: () => {
       refresh();
     },
-    onError: (err) => {
-      if (err instanceof TRPCClientError) {
-        toast.error(err.message);
-      } else {
-        toast.error("Erro ao fazer login");
-      }
-    },
+    onError: (err) => onAuthError(err, "Erro de conexão. Verifique sua internet e tente novamente."),
   });
 
   const registerMut = trpc.auth.register.useMutation({
     onSuccess: () => {
       refresh();
     },
-    onError: (err) => {
-      if (err instanceof TRPCClientError) {
-        toast.error(err.message);
-      } else {
-        toast.error("Erro ao cadastrar");
-      }
-    },
+    onError: (err) => onAuthError(err, "Erro de conexão. Verifique sua internet e tente novamente."),
   });
 
   const handleSubmit = (e: React.FormEvent) => {

@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
+import { platformFetch } from "@/lib/capacitor-fetch";
 import App from "./App";
 import "./index.css";
 
@@ -62,15 +63,7 @@ const trpcClient = trpc.createClient({
     httpBatchLink({
       url: apiUrl,
       transformer: superjson,
-      fetch(input, init) {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 60000);
-        return globalThis.fetch(input, {
-          ...(init ?? {}),
-          credentials: "include",
-          signal: controller.signal,
-        }).finally(() => clearTimeout(timeout));
-      },
+      fetch: platformFetch,
     }),
   ],
 });
