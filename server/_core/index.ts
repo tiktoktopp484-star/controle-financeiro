@@ -15,6 +15,7 @@ const ALLOWED_ORIGINS = [
   "capacitor://localhost",
   "http://localhost",
   "https://localhost",
+  "null",
 ];
 const isOriginAllowed = (origin: string | undefined) =>
   origin ? ALLOWED_ORIGINS.some((a) => origin.startsWith(a)) : true;
@@ -31,6 +32,7 @@ async function startServer() {
       res.setHeader("Access-Control-Allow-Credentials", "true");
       res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
       res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, trpc-accept");
+      res.setHeader("Vary", "Origin");
     }
     if (req.method === "OPTIONS") {
       res.status(204).end();

@@ -4,6 +4,9 @@ const config: CapacitorConfig = {
   appId: 'com.marcelo.financeiro',
   appName: 'Controle Financeiro',
   webDir: 'dist/public',
+  server: {
+    androidScheme: 'http',
+  },
   plugins: {
     SplashScreen: {
       launchAutoHide: true,
