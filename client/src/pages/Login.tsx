@@ -1,36 +1,35 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/_core/hooks/useAuth";
-import { TRPCClientError } from "@trpc/client";
 import { toast } from "sonner";
 
 type Mode = "login" | "register";
 
 export default function Login() {
-  const { refresh } = useAuth();
   const [mode, setMode] = useState<Mode>("login");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
 
-  function onAuthError(err: unknown, fallback: string) {
-    const msg = err instanceof TRPCClientError ? err.message : "";
-    const isNetworkError = !msg || msg.includes("fetch") || msg.includes("abort") || msg.includes("network");
-    toast.error(isNetworkError ? fallback : msg);
-  }
+  const utils = trpc.useUtils();
 
   const loginMut = trpc.auth.login.useMutation({
     onSuccess: () => {
-      refresh();
+      utils.auth.me.invalidate();
+      toast.success("Login realizado!");
     },
-    onError: (err) => onAuthError(err, "Erro de conexão. Verifique sua internet e tente novamente."),
+    onError: (err) => {
+      toast.error(err.message);
+    },
   });
 
   const registerMut = trpc.auth.register.useMutation({
     onSuccess: () => {
-      refresh();
+      utils.auth.me.invalidate();
+      toast.success("Conta criada com sucesso!");
     },
-    onError: (err) => onAuthError(err, "Erro de conexão. Verifique sua internet e tente novamente."),
+    onError: (err) => {
+      toast.error(err.message);
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -38,7 +37,7 @@ export default function Login() {
     if (mode === "login") {
       loginMut.mutate({ email, password });
     } else {
-      registerMut.mutate({ email, password, name });
+      registerMut.mutate({ name, email, password });
     }
   };
 
@@ -49,6 +48,7 @@ export default function Login() {
       className="min-h-screen flex flex-col items-center justify-center px-6 py-12 sacred-bg"
       style={{ minHeight: "100dvh" }}
     >
+      {/* Sacred geometry decorative circles */}
       <div
         className="absolute inset-0 overflow-hidden pointer-events-none"
         aria-hidden="true"
@@ -86,7 +86,9 @@ export default function Login() {
         </svg>
       </div>
 
+      {/* Main card */}
       <div className="relative w-full max-w-sm animate-fade-in-up">
+        {/* Golden top accent */}
         <div
           className="h-1 rounded-t-2xl"
           style={{
@@ -98,6 +100,7 @@ export default function Login() {
           className="bg-white rounded-b-2xl shadow-2xl px-8 py-10"
           style={{ boxShadow: "0 20px 60px rgba(26,39,68,0.15), 0 4px 16px rgba(201,168,76,0.1)" }}
         >
+          {/* Logo / Icon */}
           <div className="flex justify-center mb-6">
             <div
               className="w-16 h-16 rounded-2xl flex items-center justify-center"
@@ -120,6 +123,7 @@ export default function Login() {
             </div>
           </div>
 
+          {/* Headline */}
           <div className="text-center mb-2">
             <h1
               className="text-3xl font-bold tracking-tight"
@@ -133,115 +137,120 @@ export default function Login() {
             </h1>
           </div>
 
+          {/* Gold subtitle */}
           <p
             className="text-center text-sm mb-8 tracking-widest uppercase"
             style={{ color: "#C9A84C", fontFamily: "'Inter', sans-serif", fontWeight: 500, letterSpacing: "0.15em" }}
           >
-            Gestão com Precisão Áurea
+            {mode === "login" ? "Acesse sua conta" : "Crie sua conta"}
           </p>
 
+          {/* Gold divider */}
           <div
-            className="h-px mb-6"
+            className="h-px mb-8"
             style={{ background: "linear-gradient(90deg, transparent, #E2C47A, transparent)" }}
           />
 
-          {/* Mode toggle */}
-          <div className="flex mb-6 rounded-xl overflow-hidden" style={{ border: "1px solid rgba(201,168,76,0.3)" }}>
-            <button
-              onClick={() => setMode("login")}
-              className="flex-1 py-2.5 text-sm font-semibold transition-all"
-              style={{
-                background: mode === "login" ? "#1A2744" : "transparent",
-                color: mode === "login" ? "#E2C47A" : "#6B6350",
-              }}
-            >
-              Entrar
-            </button>
-            <button
-              onClick={() => setMode("register")}
-              className="flex-1 py-2.5 text-sm font-semibold transition-all"
-              style={{
-                background: mode === "register" ? "#1A2744" : "transparent",
-                color: mode === "register" ? "#E2C47A" : "#6B6350",
-              }}
-            >
-              Cadastrar
-            </button>
-          </div>
-
-          {/* Email/password form */}
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              {mode === "register" && (
+            {mode === "register" && (
+              <div>
+                <label className="block text-xs font-semibold mb-1.5 tracking-wider" style={{ color: "#6B6350" }}>
+                  NOME
+                </label>
                 <input
-                  type="text"
-                  placeholder="Nome"
+                  className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-all"
+                  style={{
+                    background: "#F5F0E8",
+                    color: "#1A2744",
+                    border: "1px solid #E8E0D0",
+                  }}
+                  placeholder="Seu nome"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
-                  className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-                  style={{
-                    background: "rgba(26,39,68,0.04)",
-                    color: "#1A2744",
-                    border: "1px solid rgba(201,168,76,0.25)",
-                  }}
                 />
-              )}
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-              style={{
-                background: "rgba(26,39,68,0.04)",
-                color: "#1A2744",
-                border: "1px solid rgba(201,168,76,0.25)",
-              }}
-            />
-            <input
-              type="password"
-              placeholder="Senha"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={mode === "register" ? 6 : 1}
-              className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-              style={{
-                background: "rgba(26,39,68,0.04)",
-                color: "#1A2744",
-                border: "1px solid rgba(201,168,76,0.25)",
-              }}
-            />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-semibold mb-1.5 tracking-wider" style={{ color: "#6B6350" }}>
+                EMAIL
+              </label>
+              <input
+                className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-all"
+                style={{
+                  background: "#F5F0E8",
+                  color: "#1A2744",
+                  border: "1px solid #E8E0D0",
+                }}
+                type="email"
+                placeholder="seu@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold mb-1.5 tracking-wider" style={{ color: "#6B6350" }}>
+                SENHA
+              </label>
+              <input
+                className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-all"
+                style={{
+                  background: "#F5F0E8",
+                  color: "#1A2744",
+                  border: "1px solid #E8E0D0",
+                }}
+                type="password"
+                placeholder={mode === "register" ? "Mínimo 4 caracteres" : "Sua senha"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                minLength={4}
+                required
+              />
+            </div>
 
             <button
               type="submit"
               disabled={isPending}
-              className="w-full py-4 px-6 rounded-xl font-semibold text-base transition-all duration-200 active:scale-95 disabled:opacity-60"
+              className="w-full py-4 px-6 rounded-xl font-semibold text-base transition-all duration-200 active:scale-95 disabled:opacity-60 mt-2"
               style={{
                 background: "linear-gradient(135deg, #1A2744 0%, #243460 100%)",
                 color: "#E2C47A",
                 boxShadow: "0 4px 16px rgba(26,39,68,0.25)",
+                fontFamily: "'Inter', sans-serif",
                 border: "1px solid rgba(201,168,76,0.3)",
               }}
             >
-              {isPending ? "Aguarde..." : mode === "login" ? "Entrar" : "Criar Conta"}
+              {isPending ? "..." : mode === "login" ? "Entrar" : "Criar Conta"}
             </button>
           </form>
 
-          <p
-            className="text-center text-xs mt-6"
-            style={{ color: "#A09880", fontFamily: "'Inter', sans-serif" }}
-          >
-            Seus dados são privados e protegidos
-          </p>
+          {/* Toggle mode */}
+          <div className="text-center mt-6">
+            <button
+              onClick={() => {
+                setMode(mode === "login" ? "register" : "login");
+                setName("");
+              }}
+              className="text-sm font-medium transition-all hover:opacity-70"
+              style={{ color: "#C9A84C", fontFamily: "'Inter', sans-serif" }}
+            >
+              {mode === "login"
+                ? "Não tem conta? Cadastre-se"
+                : "Já tem conta? Faça login"}
+            </button>
+          </div>
         </div>
 
+        {/* Bottom golden accent */}
         <div
           className="h-px mt-8 mx-8"
           style={{ background: "linear-gradient(90deg, transparent, rgba(201,168,76,0.4), transparent)" }}
         />
 
+        {/* Footer tagline */}
         <p
           className="text-center text-xs mt-4"
           style={{

@@ -212,14 +212,18 @@ class SDKServer {
       });
       const { openId, appId, name } = payload as Record<string, unknown>;
 
-      if (!isNonEmptyString(openId) || !isNonEmptyString(name)) {
+      if (
+        !isNonEmptyString(openId) ||
+        !isNonEmptyString(appId) ||
+        !isNonEmptyString(name)
+      ) {
         console.warn("[Auth] Session payload missing required fields");
         return null;
       }
 
       return {
         openId,
-        appId: appId as string,
+        appId,
         name,
       };
     } catch (error) {
@@ -264,10 +268,34 @@ class SDKServer {
 
     const sessionUserId = session.openId;
     const signedInAt = new Date();
+
+    // Try DB first
     let user = await db.getUserByOpenId(sessionUserId);
 
-    // If user not in DB, sync from OAuth server automatically
+    // If user not in DB, try local auth store
     if (!user) {
+      try {
+        const { getUserByEmail } = await import("../authStore");
+        const localUser = await getUserByEmail(sessionUserId);
+        if (localUser) {
+          return {
+            id: localUser.id,
+            openId: localUser.email,
+            name: localUser.name,
+            email: localUser.email,
+            passwordHash: null,
+            loginMethod: "local",
+            role: localUser.role,
+            createdAt: new Date(localUser.createdAt),
+            updatedAt: new Date(localUser.updatedAt),
+            lastSignedIn: new Date(localUser.lastSignedIn),
+          };
+        }
+      } catch {
+        // Ignore - file store not available
+      }
+
+      // Still not found, try OAuth sync
       try {
         const userInfo = await this.getUserInfoWithJwt(sessionCookie ?? "");
         await db.upsertUser({
@@ -280,7 +308,7 @@ class SDKServer {
         user = await db.getUserByOpenId(userInfo.openId);
       } catch (error) {
         console.error("[Auth] Failed to sync user from OAuth:", error);
-        throw ForbiddenError("Failed to sync user info");
+        throw ForbiddenError("User not found");
       }
     }
 
@@ -293,8 +321,7 @@ class SDKServer {
       lastSignedIn: signedInAt,
     });
 
-    const { passwordHash: _, ...safeUser } = user;
-    return safeUser as User;
+    return user;
   }
 }
 

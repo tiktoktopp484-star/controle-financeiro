@@ -26,7 +26,7 @@
 </head>
 <body>
   <h1>Política de Privacidade</h1>
-  <p class="last-update"><strong>Controle Financeiro</strong> — Última atualização: 12 de maio de 2026</p>
+  <p class="last-update"><strong>Controle Financeiro</strong> — Última atualização: 19 de maio de 2026</p>
 
   <h2>1. Introdução</h2>
   <p>O aplicativo <strong>Controle Financeiro</strong> respeita a sua privacidade. Esta política descreve como coletamos, usamos, armazenamos e protegemos suas informações.</p>
@@ -35,7 +35,7 @@
 
   <h3>2.1 Dados fornecidos pelo usuário</h3>
   <ul>
-    <li><strong>Informações da conta Google</strong>: nome, e-mail e identificador único (OpenID) obtidos via Google OAuth</li>
+    <li><strong>Informações da conta</strong>: nome, e-mail e senha (armazenada de forma criptografada) fornecidos no cadastro</li>
     <li><strong>Dados financeiros</strong>: valores, descrições, datas e categorias de salários, despesas, receitas, dívidas, cartão de crédito e metas de poupança</li>
   </ul>
 
@@ -46,7 +46,7 @@
 
   <h2>3. Finalidade do Tratamento</h2>
   <ul>
-    <li>Autenticar o usuário via Google OAuth</li>
+    <li>Autenticar o usuário via e-mail e senha</li>
     <li>Permitir o gerenciamento de finanças pessoais</li>
     <li>Gerar resumos e relatórios financeiros</li>
     <li>Melhorar a experiência do usuário</li>
@@ -56,23 +56,23 @@
   <p><strong>Não vendemos, alugamos ou compartilhamos seus dados pessoais com terceiros.</strong> Exceções:</p>
   <ul>
     <li>Banco de dados MySQL (servidores seguros e criptografados)</li>
-    <li>AWS S3 (armazenamento de arquivos, se aplicável)</li>
-    <li>Google OAuth (autenticação)</li>
+    <li>Armazenamento local em arquivo JSON (servidor)</li>
     <li>Umami Analytics (dados anônimos de uso)</li>
     <li>Obrigação legal</li>
   </ul>
 
   <h2>5. Armazenamento e Segurança</h2>
   <ul>
-    <li>Dados armazenados com criptografia em trânsito (TLS/SSL) e em repouso</li>
-    <li>Senhas não são armazenadas — autenticação via Google OAuth</li>
+    <li>Dados armazenados com criptografia em trânsito (TLS/SSL)</li>
+    <li>Senhas armazenadas com hash criptográfico (scrypt + salt)</li>
+    <li>Sessões autenticadas via JWT com token seguro</li>
     <li>Acesso restrito ao usuário autenticado</li>
   </ul>
 
   <h2>6. Retenção e Exclusão</h2>
   <ul>
     <li>Dados mantidos enquanto a conta estiver ativa</li>
-    <li>Exclusão completa solicitada via e-mail em até 30 dias</li>
+    <li>Exclusão completa pode ser solicitada pelo app ou via e-mail em até 30 dias</li>
   </ul>
 
   <h2>7. Seus Direitos (LGPD)</h2>
@@ -87,8 +87,7 @@
   <h2>8. Contato</h2>
   <p>
     <strong>Desenvolvedor:</strong> Marcelo<br>
-    <strong>E-mail:</strong> <a href="mailto:grupooferta6@gmail.com">grupooferta6@gmail.com</a><br>
-    <strong>Repositório:</strong> <a href="https://github.com/tiktoktopp484-star/controle-financeiro">https://github.com/tiktoktopp484-star/controle-financeiro</a>
+    <strong>E-mail:</strong> <a href="mailto:grupooferta6@gmail.com">grupooferta6@gmail.com</a>
   </p>
 
   <footer>
