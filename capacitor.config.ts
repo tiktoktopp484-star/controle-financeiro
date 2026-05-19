@@ -5,7 +5,8 @@ const config: CapacitorConfig = {
   appName: 'Controle Financeiro',
   webDir: 'dist/public',
   server: {
-    androidScheme: 'http',
+    url: 'https://controle-financeiro-x7lb.onrender.com',
+    androidScheme: 'https',
   },
   plugins: {
     SplashScreen: {
