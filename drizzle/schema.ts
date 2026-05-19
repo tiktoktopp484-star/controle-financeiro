@@ -15,8 +15,11 @@ export const users = mysqlTable("users", {
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
-  passwordHash: varchar("passwordHash", { length: 256 }),
+  passwordHash: varchar("passwordHash", { length: 255 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
+  premium: boolean("premium").default(false).notNull(),
+  premiumUntil: timestamp("premiumUntil"),
+  trialUsed: boolean("trialUsed").default(false).notNull(),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -57,6 +60,8 @@ export const expenses = mysqlTable("expenses", {
     .default("Outros")
     .notNull(),
   date: date("date").notNull(),
+  customCategory: varchar("customCategory", { length: 100 }),
+  receiptUrl: text("receiptUrl"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -145,3 +150,27 @@ export const goals = mysqlTable("goals", {
 
 export type Goal = typeof goals.$inferSelect;
 export type InsertGoal = typeof goals.$inferInsert;
+
+// Categorias personalizadas (Premium)
+export const customCategories = mysqlTable("custom_categories", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type CustomCategory = typeof customCategories.$inferSelect;
+export type InsertCustomCategory = typeof customCategories.$inferInsert;
+
+// Orçamentos mensais (Premium)
+export const budgets = mysqlTable("budgets", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  category: varchar("category", { length: 100 }).notNull(),
+  month: varchar("month", { length: 7 }).notNull(),
+  spendingLimit: decimal("spendingLimit", { precision: 15, scale: 2 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Budget = typeof budgets.$inferSelect;
+export type InsertBudget = typeof budgets.$inferInsert;
