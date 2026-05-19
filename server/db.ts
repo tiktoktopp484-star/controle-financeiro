@@ -27,6 +27,11 @@ export async function getDb() {
           password: decodeURIComponent(parsed.password),
           database: parsed.pathname.slice(1),
           ssl: sslParam === "true" ? {} : sslParam ? JSON.parse(sslParam) : undefined,
+          pool: {
+            connectionLimit: 5,
+            enableKeepAlive: true,
+            keepAliveInitialDelay: 10000,
+          },
         },
       });
     } catch (error) {
