@@ -13,8 +13,8 @@ export default function Login() {
   const utils = trpc.useUtils();
 
   const loginMut = trpc.auth.login.useMutation({
-    onSuccess: () => {
-      utils.auth.me.invalidate();
+    onSuccess: (data) => {
+      utils.auth.me.setData(undefined, data as any);
       toast.success("Login realizado!");
     },
     onError: (err) => {
@@ -23,8 +23,8 @@ export default function Login() {
   });
 
   const registerMut = trpc.auth.register.useMutation({
-    onSuccess: () => {
-      utils.auth.me.invalidate();
+    onSuccess: (data) => {
+      utils.auth.me.setData(undefined, data as any);
       toast.success("Conta criada com sucesso!");
     },
     onError: (err) => {
