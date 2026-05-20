@@ -42,14 +42,6 @@ export default function Despesas() {
     onError: () => toast.error("Erro ao adicionar despesa"),
   });
 
-  const uploadMut = trpc.expenses.uploadReceipt.useMutation({
-    onSuccess: () => {
-      utils.expenses.list.invalidate();
-      toast.success("Comprovante anexado!");
-    },
-    onError: () => toast.error("Erro ao anexar comprovante"),
-  });
-
   const delMut = trpc.expenses.delete.useMutation({
     onMutate: async ({ id }) => {
       await utils.expenses.list.cancel();
@@ -84,13 +76,6 @@ export default function Despesas() {
 
     addMut.mutate(
       { description: desc.trim(), value: v, category: selCat, date },
-      {
-        onSuccess: async (data) => {
-          if (receiptPreview && data.id) {
-            uploadMut.mutate({ expenseId: data.id, base64: receiptPreview });
-          }
-        },
-      }
     );
   };
 

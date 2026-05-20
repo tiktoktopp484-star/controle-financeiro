@@ -1,4 +1,3 @@
-import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
 
@@ -29,15 +28,7 @@ type Props = {
 };
 
 export default function PremiumPlans({ onClose }: Props) {
-  const { user, refresh } = useAuth();
-  const trialMut = trpc.auth.activateTrial.useMutation({
-    onSuccess: () => {
-      toast.success("Teste grátis ativado! Aproveite 1 dia de Premium.");
-      refresh();
-      onClose();
-    },
-    onError: (err) => toast.error(err.message),
-  });
+  const { user } = useAuth();
 
   const handleSubscribe = () => {
     toast.info("Em breve! Pagamentos serão processados com segurança.");
@@ -162,16 +153,15 @@ export default function PremiumPlans({ onClose }: Props) {
               <div className="flex flex-col gap-2">
                 {!user?.trialUsed && (
                   <button
-                    onClick={() => trialMut.mutate()}
-                    disabled={trialMut.isPending}
-                    className="w-full py-3 rounded-xl text-sm font-bold transition-all active:scale-95 disabled:opacity-60"
+                    onClick={() => toast.info("Teste grátis estará disponível em breve!")}
+                    className="w-full py-3 rounded-xl text-sm font-bold transition-all active:scale-95"
                     style={{
                       background: "transparent",
                       color: "#E2C47A",
                       border: "1px solid rgba(226,196,122,0.4)",
                     }}
                   >
-                    {trialMut.isPending ? "Ativando..." : "🎁 Teste Grátis 1 Dia"}
+                    🎁 Teste Grátis 1 Dia
                   </button>
                 )}
                 <button

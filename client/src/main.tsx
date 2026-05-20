@@ -8,7 +8,7 @@ import superjson from "superjson";
 import App from "./App";
 import "./index.css";
 
-SplashScreen.hide();
+SplashScreen.hide().catch(() => {});
 
 const queryClient = new QueryClient();
 
