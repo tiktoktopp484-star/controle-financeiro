@@ -8,7 +8,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
-import { serveStatic, setupVite } from "./vite";
+import { serveStatic, setupVite, PROJECT_ROOT } from "./vite";
 import { getUploadsDir } from "../localUpload";
 import { registerAsaasWebhook } from "../asaasWebhook";
 
@@ -58,7 +58,7 @@ async function startServer() {
     })
   );
   // Use Vite dev mode if dist doesn't exist (local development)
-  const distPath = path.resolve(process.cwd(), "dist", "public");
+  const distPath = path.resolve(PROJECT_ROOT, "dist", "public");
   if (fs.existsSync(distPath)) {
     serveStatic(app);
   } else {

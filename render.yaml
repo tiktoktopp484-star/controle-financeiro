@@ -3,7 +3,7 @@ services:
     name: controle-financeiro
     env: node
     buildCommand: pnpm build
-    startCommand: pnpm migrate && node dist/index.js
+    startCommand: pnpm migrate && pnpm ensure-columns && node dist/index.js
     envVars:
       - key: NODE_ENV
         value: production
