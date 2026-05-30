@@ -1,1 +1,1 @@
-ALTER TABLE `users` ADD `passwordHash` varchar(255);
+-- Already handled in 0003_add_password_hash.sql
