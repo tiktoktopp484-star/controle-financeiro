@@ -58,7 +58,7 @@ async function startServer() {
     })
   );
   // Use Vite dev mode if dist doesn't exist (local development)
-  const distPath = path.resolve(import.meta.dirname, "../..", "dist", "public");
+  const distPath = path.resolve(process.cwd(), "dist", "public");
   if (fs.existsSync(distPath)) {
     serveStatic(app);
   } else {
