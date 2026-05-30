@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import path from "path";
+import fs from "fs";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
@@ -9,6 +10,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { getUploadsDir } from "../localUpload";
+import { registerAsaasWebhook } from "../asaasWebhook";
 
 const ALLOWED_ORIGINS = [
   "https://controle-financeiro-x7lb.onrender.com",
@@ -46,6 +48,7 @@ async function startServer() {
   app.use("/uploads", express.static(getUploadsDir()));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+  registerAsaasWebhook(app);
   // tRPC API
   app.use(
     "/api/trpc",
@@ -54,11 +57,12 @@ async function startServer() {
       createContext,
     })
   );
-  // development mode uses Vite, production mode uses static files
-  if (process.env.NODE_ENV === "development") {
-    await setupVite(app, server);
-  } else {
+  // Use Vite dev mode if dist doesn't exist (local development)
+  const distPath = path.resolve(import.meta.dirname, "../..", "dist", "public");
+  if (fs.existsSync(distPath)) {
     serveStatic(app);
+  } else {
+    await setupVite(app, server);
   }
 
   const port = parseInt(process.env.PORT || "3000");

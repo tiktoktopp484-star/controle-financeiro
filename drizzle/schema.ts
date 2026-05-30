@@ -20,6 +20,8 @@ export const users = mysqlTable("users", {
   premium: boolean("premium").default(false).notNull(),
   premiumUntil: timestamp("premiumUntil"),
   trialUsed: boolean("trialUsed").default(false).notNull(),
+  asaasCustomerId: varchar("asaasCustomerId", { length: 64 }),
+  asaasSubscriptionId: varchar("asaasSubscriptionId", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -48,17 +50,7 @@ export const expenses = mysqlTable("expenses", {
   userId: int("userId").notNull(),
   description: varchar("description", { length: 255 }).notNull(),
   value: decimal("value", { precision: 15, scale: 2 }).notNull(),
-  category: mysqlEnum("category", [
-    "Alimentação",
-    "Transporte",
-    "Saúde",
-    "Lazer",
-    "Educação",
-    "Casa",
-    "Outros",
-  ])
-    .default("Outros")
-    .notNull(),
+  category: varchar("category", { length: 100 }).default("Outros").notNull(),
   date: date("date").notNull(),
   customCategory: varchar("customCategory", { length: 100 }),
   receiptUrl: text("receiptUrl"),

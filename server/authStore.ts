@@ -16,6 +16,9 @@ export type StoredUser = {
   email: string;
   passwordHash: string;
   role: "user" | "admin";
+  premium: boolean;
+  premiumUntil: string | null;
+  trialUsed: boolean;
   createdAt: string;
   updatedAt: string;
   lastSignedIn: string;
@@ -68,6 +71,9 @@ function fromDbRow(row: typeof users.$inferSelect): StoredUser {
     email: row.email ?? "",
     passwordHash: row.passwordHash ?? "",
     role: row.role,
+    premium: row.premium,
+    premiumUntil: row.premiumUntil?.toISOString() ?? null,
+    trialUsed: row.trialUsed,
     createdAt: row.createdAt?.toISOString() ?? new Date().toISOString(),
     updatedAt: row.updatedAt?.toISOString() ?? new Date().toISOString(),
     lastSignedIn: row.lastSignedIn?.toISOString() ?? new Date().toISOString(),
@@ -128,6 +134,9 @@ export async function registerUser(name: string, email: string, password: string
     email,
     passwordHash: hash,
     role: isFirst ? "admin" : "user",
+    premium: false,
+    premiumUntil: null,
+    trialUsed: false,
     createdAt: nowStr,
     updatedAt: nowStr,
     lastSignedIn: nowStr,
@@ -162,6 +171,34 @@ export async function authenticateUser(email: string, password: string): Promise
   }
 
   return user;
+}
+
+export async function updateLocalUserPremium(
+  email: string,
+  premium: boolean,
+  premiumUntil: string | null
+): Promise<StoredUser | null> {
+  const db = await getDb();
+  if (db) {
+    await db
+      .update(users)
+      .set({
+        premium,
+        premiumUntil: premiumUntil ? new Date(premiumUntil) : null,
+      })
+      .where(eq(users.email, email));
+    const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    if (rows.length > 0) return fromDbRow(rows[0]);
+    return null;
+  }
+
+  const fileUsers = readUsers();
+  const idx = fileUsers.findIndex((u) => u.email === email);
+  if (idx === -1) return null;
+  fileUsers[idx].premium = premium;
+  fileUsers[idx].premiumUntil = premiumUntil;
+  writeUsers(fileUsers);
+  return fileUsers[idx];
 }
 
 export async function deleteUserByEmail(email: string): Promise<boolean> {

@@ -13,15 +13,13 @@ const CATEGORIES = [
   { key: "Outros", emoji: "📦", color: "#7F8C8D" },
 ] as const;
 
-type Category = (typeof CATEGORIES)[number]["key"];
-
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 export default function Despesas() {
   const { user } = useAuth();
-  const [selCat, setSelCat] = useState<Category>("Outros");
+  const [selCat, setSelCat] = useState("Outros");
   const [desc, setDesc] = useState("");
   const [val, setVal] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
@@ -32,6 +30,22 @@ export default function Despesas() {
 
   const utils = trpc.useUtils();
   const { data: expenses = [], isLoading } = trpc.expenses.list.useQuery();
+  const { data: customCats = [] } = trpc.customCategories.list.useQuery(undefined, { enabled: !!user?.premium });
+
+  const allCats = user?.premium && customCats.length > 0
+    ? [...CATEGORIES, ...customCats.map((c: { name: string }) => ({ key: c.name, emoji: "📌" as const, color: "#C9A84C" as const }))]
+    : CATEGORIES;
+
+  const addCatMut = trpc.customCategories.add.useMutation({
+    onSuccess: () => {
+      utils.customCategories.list.invalidate();
+      toast.success("Categoria personalizada criada!");
+    },
+    onError: () => toast.error("Erro ao criar categoria"),
+  });
+
+  const [newCatName, setNewCatName] = useState("");
+  const [showNewCat, setShowNewCat] = useState(false);
 
   const addMut = trpc.expenses.add.useMutation({
     onSuccess: () => {
@@ -79,7 +93,7 @@ export default function Despesas() {
     );
   };
 
-  const catColor = (cat: string) => CATEGORIES.find((c) => c.key === cat)?.color ?? "#7F8C8D";
+  const catColor = (cat: string) => allCats.find((c: { key: string; color: string }) => c.key === cat)?.color ?? "#7F8C8D";
 
   return (
     <div>
@@ -87,7 +101,7 @@ export default function Despesas() {
       <div className="section-card">
         <p className="text-sm font-semibold mb-3" style={{ color: "#1A2744" }}>Categoria</p>
         <div className="flex flex-wrap gap-2 mb-4">
-          {CATEGORIES.map((c) => (
+          {allCats.map((c) => (
             <button
               key={c.key}
               className="cat-pill"
@@ -101,6 +115,45 @@ export default function Despesas() {
               {c.emoji} {c.key}
             </button>
           ))}
+          {user?.premium && !showNewCat && (
+            <button
+              onClick={() => setShowNewCat(true)}
+              className="cat-pill"
+              style={{ background: "transparent", border: "1px dashed #C9A84C", color: "#C9A84C" }}
+            >
+              + Nova
+            </button>
+          )}
+          {showNewCat && (
+            <div className="flex gap-1 w-full mt-1">
+              <input
+                className="fin-input flex-1 text-sm"
+                placeholder="Nome da categoria"
+                value={newCatName}
+                onChange={(e) => setNewCatName(e.target.value)}
+              />
+              <button
+                onClick={() => {
+                  if (!newCatName.trim()) { toast.error("Digite um nome"); return; }
+                  addCatMut.mutate({ name: newCatName.trim() });
+                  setNewCatName("");
+                  setShowNewCat(false);
+                }}
+                disabled={addCatMut.isPending}
+                className="px-3 py-2 rounded-xl text-xs font-semibold"
+                style={{ background: "#1A2744", color: "#E2C47A" }}
+              >
+                Criar
+              </button>
+              <button
+                onClick={() => { setShowNewCat(false); setNewCatName(""); }}
+                className="px-3 py-2 rounded-xl text-xs"
+                style={{ background: "#F5F0E8", color: "#6B6350" }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-2 mb-2">

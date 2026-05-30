@@ -1,7 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
+  budgets,
   cards,
+  customCategories,
   debts,
   expenses,
   goals,
@@ -129,7 +131,7 @@ export async function addExpense(
   userId: number,
   description: string,
   value: string,
-  category: typeof expenses.$inferInsert["category"],
+  category: string,
   date: string
 ) {
   const db = await getDb();
@@ -303,4 +305,92 @@ export async function deleteGoal(id: number, userId: number) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
   await db.delete(goals).where(and(eq(goals.id, id), eq(goals.userId, userId)));
+}
+
+// ── PREMIUM ───────────────────────────────────────────────────────────────────
+export async function activatePremium(userId: number, months: number, asaasSubscriptionId?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const now = new Date();
+  const until = new Date(now.setMonth(now.getMonth() + months));
+  const updateData: Record<string, unknown> = {
+    premium: true,
+    premiumUntil: until,
+  };
+  if (asaasSubscriptionId) {
+    updateData.asaasSubscriptionId = asaasSubscriptionId;
+  }
+  await db.update(users).set(updateData).where(eq(users.id, userId));
+  return until;
+}
+
+export async function deactivatePremium(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.update(users).set({ premium: false, premiumUntil: null }).where(eq(users.id, userId));
+}
+
+export async function updateAsaasCustomerId(userId: number, asaasCustomerId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.update(users).set({ asaasCustomerId }).where(eq(users.id, userId));
+}
+
+export async function getExpiredPremiumUsers() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(users)
+    .where(and(eq(users.premium, true), isNotNull(users.premiumUntil)));
+}
+
+// ── CATEGORIAS PERSONALIZADAS (Premium) ──────────────────────────────────────
+export async function getCustomCategories(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(customCategories).where(eq(customCategories.userId, userId));
+}
+
+export async function addCustomCategory(userId: number, name: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.insert(customCategories).values({ userId, name });
+}
+
+export async function deleteCustomCategory(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.delete(customCategories).where(and(eq(customCategories.id, id), eq(customCategories.userId, userId)));
+}
+
+// ── ORÇAMENTOS (Premium) ─────────────────────────────────────────────────────
+export async function getBudgets(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(budgets).where(eq(budgets.userId, userId));
+}
+
+export async function upsertBudget(userId: number, category: string, month: string, spendingLimit: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const existing = await db
+    .select()
+    .from(budgets)
+    .where(and(eq(budgets.userId, userId), eq(budgets.category, category), eq(budgets.month, month)))
+    .limit(1);
+  if (existing.length > 0) {
+    await db
+      .update(budgets)
+      .set({ spendingLimit })
+      .where(eq(budgets.id, existing[0].id));
+  } else {
+    await db.insert(budgets).values({ userId, category, month, spendingLimit });
+  }
+}
+
+export async function deleteBudget(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.delete(budgets).where(and(eq(budgets.id, id), eq(budgets.userId, userId)));
 }

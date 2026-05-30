@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
+import { useTheme } from "@/contexts/ThemeContext";
 import { toast } from "sonner";
 import Login from "./Login";
 import Despesas from "./Despesas";
@@ -9,20 +10,25 @@ import Dividas from "./Dividas";
 import Cartao from "./Cartao";
 import Metas from "./Metas";
 import Calendario from "./Calendario";
+import Graficos from "./Graficos";
+import Orcamentos from "./Orcamentos";
+import PremiumPlans from "./PremiumPlans";
 
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-type Tab = "despesas" | "receitas" | "dividas" | "cartao" | "metas" | "calendario";
+type Tab = "despesas" | "receitas" | "dividas" | "cartao" | "metas" | "calendario" | "graficos" | "orcamentos";
 
-const TABS: { id: Tab; emoji: string; label: string }[] = [
+const TAB_DEFS: { id: Tab; emoji: string; label: string; premium?: boolean }[] = [
   { id: "despesas", emoji: "💸", label: "Despesas" },
   { id: "receitas", emoji: "💵", label: "Receitas" },
   { id: "dividas", emoji: "⚠️", label: "Dívidas" },
   { id: "cartao", emoji: "💳", label: "Cartão" },
   { id: "metas", emoji: "🏦", label: "Metas" },
   { id: "calendario", emoji: "📅", label: "Calendário" },
+  { id: "graficos", emoji: "📊", label: "Gráficos", premium: true },
+  { id: "orcamentos", emoji: "💰", label: "Orçamentos", premium: true },
 ];
 
 function SalarySection() {
@@ -202,10 +208,58 @@ function SummaryCards() {
   );
 }
 
+function AlertasBanner() {
+  const { data: debts = [] } = trpc.debts.list.useQuery();
+  const today = new Date();
+  const soon = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
+  const near = debts.filter((d) => {
+    if (d.paid) return false;
+    const due = new Date(d.dueDate);
+    return due >= today && due <= soon;
+  });
+  if (near.length === 0) return null;
+  return (
+    <div className="rounded-xl px-4 py-3 mb-4 flex items-center gap-3" style={{ background: "#FFF3CD", border: "1px solid #FFEAA7" }}>
+      <span className="text-lg">⏰</span>
+      <div className="flex-1">
+        <p className="text-sm font-semibold" style={{ color: "#856404" }}>
+          {near.length} {near.length === 1 ? "dívida" : "dívidas"} vencem em breve
+        </p>
+        <div className="text-xs mt-1" style={{ color: "#856404" }}>
+          {near.slice(0, 3).map((d) => (
+            <span key={d.id} className="mr-3">{d.description} · {new Date(d.dueDate).toLocaleDateString("pt-BR")}</span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function downloadCSV(filename: string, rows: string[][]) {
+  const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
+  const bom = "\uFEFF";
+  const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function Home() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading, logout, refresh } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<Tab>("despesas");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showPremium, setShowPremium] = useState(false);
+
+  const { data: expenses = [] } = trpc.expenses.list.useQuery();
+  const { data: incomes = [] } = trpc.incomes.list.useQuery();
+  const { data: debts = [] } = trpc.debts.list.useQuery();
+  const { data: cards = [] } = trpc.cards.list.useQuery();
+  const { data: salaries = [] } = trpc.salaries.list.useQuery();
+  const { data: budgets = [] } = trpc.budgets.list.useQuery(undefined, { enabled: !!user?.premium });
 
   const deleteAccountMut = trpc.auth.deleteAccount.useMutation({
     onSuccess: () => {
@@ -216,6 +270,32 @@ export default function Home() {
       toast.error(err.message);
     },
   });
+
+  const fmtCSV = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+
+  const handleExportExpenses = () => {
+    const rows = [["Descrição", "Valor", "Categoria", "Data"]];
+    expenses.forEach((e) => rows.push([e.description, fmtCSV(e.value), e.category ?? "Outros", e.date ?? ""]));
+    downloadCSV(`despesas_${new Date().toISOString().split("T")[0]}.csv`, rows);
+  };
+
+  const handleExportIncomes = () => {
+    const rows = [["Descrição", "Valor", "Data"]];
+    incomes.forEach((i) => rows.push([i.description, fmtCSV(i.value), i.date ?? ""]));
+    downloadCSV(`receitas_${new Date().toISOString().split("T")[0]}.csv`, rows);
+  };
+
+  const handleExportDebts = () => {
+    const rows = [["Descrição", "Valor", "Tipo", "Vencimento", "Paga"]];
+    debts.forEach((d) => rows.push([d.description, fmtCSV(d.value), d.type, d.dueDate, d.paid ? "Sim" : "Não"]));
+    downloadCSV(`dividas_${new Date().toISOString().split("T")[0]}.csv`, rows);
+  };
+
+  const handleExportCards = () => {
+    const rows = [["Descrição", "Valor", "Bandeira", "Data"]];
+    cards.forEach((c) => rows.push([c.description, fmtCSV(c.value), c.flag, c.date ?? ""]));
+    downloadCSV(`cartoes_${new Date().toISOString().split("T")[0]}.csv`, rows);
+  };
 
   if (loading) {
     return (
@@ -257,7 +337,39 @@ export default function Home() {
             {user.name ?? user.email ?? "Usuário"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          {user?.premium && toggleTheme && (
+            <button
+              onClick={toggleTheme}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-all active:scale-90"
+              style={{
+                background: "rgba(26,39,68,0.08)",
+                border: "1px solid rgba(26,39,68,0.12)",
+              }}
+              title={theme === "dark" ? "Modo Claro" : "Modo Escuro"}
+            >
+              {theme === "dark" ? "☀️" : "🌙"}
+            </button>
+          )}
+          {user?.premium ? (
+            <span
+              className="px-2 py-1 rounded-lg text-xs font-bold"
+              style={{ background: "#C9A84C", color: "#1A2744" }}
+            >
+              ✦ PREMIUM
+            </span>
+          ) : (
+            <button
+              onClick={() => setShowPremium(true)}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95"
+              style={{
+                background: "linear-gradient(135deg, #C9A84C 0%, #E2C47A 100%)",
+                color: "#1A2744",
+              }}
+            >
+              Premium
+            </button>
+          )}
           <button
             onClick={() => setShowDeleteConfirm(true)}
             className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95"
@@ -338,9 +450,12 @@ export default function Home() {
         {/* Summary cards */}
         <SummaryCards />
 
+        {/* Alertas de Vencimento */}
+        {user?.premium && <AlertasBanner />}
+
         {/* Tab bar */}
         <div className="tab-bar mb-4">
-          {TABS.map((t) => (
+          {TAB_DEFS.filter((t) => !t.premium || user?.premium).map((t) => (
             <button
               key={t.id}
               className={`tab-item ${activeTab === t.id ? "active" : ""}`}
@@ -359,7 +474,27 @@ export default function Home() {
         {activeTab === "cartao" && <Cartao />}
         {activeTab === "metas" && <Metas />}
         {activeTab === "calendario" && <Calendario />}
+        {activeTab === "graficos" && <Graficos onOpenPremium={() => setShowPremium(true)} />}
+        {activeTab === "orcamentos" && <Orcamentos onOpenPremium={() => setShowPremium(true)} />}
+
+        {/* CSV Export Panel */}
+        {user?.premium && (
+          <div className="section-card mt-4">
+            <p className="text-sm font-semibold mb-3" style={{ color: "#1A2744" }}>
+              Exportar Dados (CSV)
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={handleExportExpenses} className="px-4 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95" style={{ background: "#C0392B", color: "#fff" }}>📥 Despesas</button>
+              <button onClick={handleExportIncomes} className="px-4 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95" style={{ background: "#2D7A4F", color: "#fff" }}>📥 Receitas</button>
+              <button onClick={handleExportDebts} className="px-4 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95" style={{ background: "#D4680A", color: "#fff" }}>📥 Dívidas</button>
+              <button onClick={handleExportCards} className="px-4 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95" style={{ background: "#6B3FA0", color: "#fff" }}>📥 Cartões</button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Premium Plans Modal */}
+      {showPremium && <PremiumPlans onClose={() => { setShowPremium(false); refresh(); }} />}
     </div>
   );
 }

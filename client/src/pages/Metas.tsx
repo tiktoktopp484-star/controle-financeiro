@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
 
 const goalCategoryIcons: Record<string, string> = {
@@ -22,7 +23,10 @@ const goalCategoryColors: Record<string, string> = {
   Outros: "#BB8FCE",
 };
 
+const FREE_GOAL_LIMIT = 3;
+
 export default function Metas() {
+  const { user } = useAuth();
   const { data: goals = [], isLoading, refetch } = trpc.goals.list.useQuery();
   const addMut = trpc.goals.add.useMutation({ onSuccess: () => { refetch(); setShowForm(false); } });
   const depositMut = trpc.goals.deposit.useMutation({ onSuccess: () => refetch() });
@@ -123,7 +127,16 @@ export default function Metas() {
 
       {/* Add button */}
       {!showForm && (
-        <button onClick={() => setShowForm(true)} className="btn-primary w-full mb-4">
+        <button
+          onClick={() => {
+            if (!user?.premium && goals.length >= FREE_GOAL_LIMIT) {
+              toast.error(`Limite de ${FREE_GOAL_LIMIT} metas no plano grátis. Assine o Premium para criar ilimitadas.`);
+              return;
+            }
+            setShowForm(true);
+          }}
+          className="btn-primary w-full mb-4"
+        >
           + Criar Meta
         </button>
       )}

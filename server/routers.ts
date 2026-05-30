@@ -3,9 +3,10 @@ import { z } from "zod";
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { protectedProcedure, publicProcedure, premiumProcedure, router } from "./_core/trpc";
 import { sdk } from "./_core/sdk";
-import { authenticateUser, registerUser, getUserByEmail, deleteUserByEmail } from "./authStore";
+import { authenticateUser, registerUser, getUserByEmail, deleteUserByEmail, updateLocalUserPremium } from "./authStore";
+import { asaasService } from "./asaas";
 import {
   addCard,
   addDebt,
@@ -29,6 +30,15 @@ import {
   toggleDebtPaid,
   toggleGoalCompleted,
   updateGoal,
+  activatePremium as activatePremiumDb,
+  deactivatePremium as deactivatePremiumDb,
+  updateAsaasCustomerId,
+  getCustomCategories,
+  addCustomCategory,
+  deleteCustomCategory,
+  getBudgets,
+  upsertBudget,
+  deleteBudget,
 } from "./db";
 
 const expenseCategories = [
@@ -210,7 +220,7 @@ export const appRouter = router({
         z.object({
           description: z.string().min(1),
           value: z.number().positive(),
-          category: z.enum(expenseCategories),
+          category: z.string(),
           date: z.string(),
         })
       )
@@ -420,6 +430,216 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         await deleteGoal(input.id, ctx.user.id);
         return { success: true };
+      }),
+  }),
+
+  // ── PREMIUM ──────────────────────────────────────────────────────────────────
+  premium: router({
+    checkout: protectedProcedure
+      .input(
+        z.object({
+          billingType: z.enum(["PIX", "BOLETO", "CREDIT_CARD"]).default("PIX"),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const user = ctx.user!;
+        if (user.premium) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Você já é assinante premium",
+          });
+        }
+        if (!user.email) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Email não encontrado",
+          });
+        }
+
+        const customer = await asaasService.findOrCreateCustomer(
+          user.name ?? user.email,
+          user.email
+        );
+
+        if (user.email) {
+          const userByEmail = await getUserByEmail(user.email);
+          if (userByEmail) {
+            await updateLocalUserPremium(user.email, false, null);
+          }
+        }
+
+        const nextDueDate = new Date();
+        nextDueDate.setDate(nextDueDate.getDate() + 1);
+        const dueDateStr = nextDueDate.toISOString().split("T")[0];
+
+        const result = await asaasService.createSubscription(
+          customer.id,
+          19.90,
+          input.billingType,
+          dueDateStr
+        );
+
+        try {
+          await updateAsaasCustomerId(user.id, customer.id);
+        } catch {
+          // DB not available, skip
+        }
+
+        const payment = result.payment;
+        return {
+          subscriptionId: result.subscription.id,
+          paymentId: payment?.id ?? null,
+          billingType: payment?.billingType ?? input.billingType,
+          status: payment?.status ?? "PENDING",
+          pixQrCode: payment?.pixQrCode ?? null,
+          bankSlipUrl: payment?.bankSlipUrl ?? null,
+          invoiceUrl: payment?.invoiceUrl ?? null,
+          value: 19.90,
+        };
+      }),
+
+    verify: protectedProcedure.query(async ({ ctx }) => {
+      const user = ctx.user!;
+      return {
+        premium: user.premium,
+        premiumUntil: user.premiumUntil,
+        email: user.email,
+      };
+    }),
+
+    cancel: protectedProcedure.mutation(async ({ ctx }) => {
+      const user = ctx.user!;
+      const userByEmail = user.email ? await getUserByEmail(user.email) : null;
+      if (!userByEmail) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Usuário não encontrado" });
+      }
+      if (user.email) {
+        await updateLocalUserPremium(user.email, false, null);
+      }
+      return { success: true };
+    }),
+
+    activateTrial: protectedProcedure.mutation(async ({ ctx }) => {
+      const user = ctx.user!;
+      const userByEmail = user.email ? await getUserByEmail(user.email) : null;
+      if (!userByEmail) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Usuário não encontrado" });
+      }
+      if (userByEmail.trialUsed) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Teste grátis já foi utilizado" });
+      }
+      const now = new Date();
+      const trialUntil = new Date(now.setDate(now.getDate() + 1));
+      if (user.email) {
+        await updateLocalUserPremium(user.email, true, trialUntil.toISOString());
+      }
+      try {
+        const dbUser = await getUserByEmail(user.email!);
+        if (dbUser) {
+          const { activatePremium } = await import("./db");
+          await activatePremium(user.id, 0);
+        }
+      } catch {
+        // DB not available
+      }
+      return { success: true, premiumUntil: trialUntil.toISOString() };
+    }),
+
+    manualActivate: protectedProcedure.mutation(async ({ ctx }) => {
+      const env = process.env.ASAAS_ENV;
+      if (env !== "sandbox" && env !== "development") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Apenas disponível em modo de teste" });
+      }
+      const user = ctx.user!;
+      if (!user.email) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Email não encontrado" });
+      }
+      const now = new Date();
+      const premiumUntil = new Date(now.setMonth(now.getMonth() + 1));
+      await updateLocalUserPremium(user.email, true, premiumUntil.toISOString());
+      return {
+        success: true,
+        premium: true,
+        premiumUntil: premiumUntil.toISOString(),
+      };
+    }),
+  }),
+
+  // ── CATEGORIAS PERSONALIZADAS (Premium) ─────────────────────────────────────
+  customCategories: router({
+    list: premiumProcedure.query(async ({ ctx }) => {
+      const user = ctx.user!;
+      try {
+        return await getCustomCategories(user.id);
+      } catch {
+        return [];
+      }
+    }),
+
+    add: premiumProcedure
+      .input(z.object({ name: z.string().min(1).max(100) }))
+      .mutation(async ({ ctx, input }) => {
+        const user = ctx.user!;
+        try {
+          await addCustomCategory(user.id, input.name);
+          return { success: true };
+        } catch {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao criar categoria" });
+        }
+      }),
+
+    delete: premiumProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const user = ctx.user!;
+        try {
+          await deleteCustomCategory(input.id, user.id);
+          return { success: true };
+        } catch {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao excluir categoria" });
+        }
+      }),
+  }),
+
+  // ── ORÇAMENTOS (Premium) ────────────────────────────────────────────────────
+  budgets: router({
+    list: premiumProcedure.query(async ({ ctx }) => {
+      const user = ctx.user!;
+      try {
+        return await getBudgets(user.id);
+      } catch {
+        return [];
+      }
+    }),
+
+    upsert: premiumProcedure
+      .input(
+        z.object({
+          category: z.string().min(1),
+          month: z.string().length(7),
+          spendingLimit: z.number().positive(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const user = ctx.user!;
+        try {
+          await upsertBudget(user.id, input.category, input.month, String(input.spendingLimit));
+          return { success: true };
+        } catch {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao salvar orçamento" });
+        }
+      }),
+
+    delete: premiumProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const user = ctx.user!;
+        try {
+          await deleteBudget(input.id, user.id);
+          return { success: true };
+        } catch {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao excluir orçamento" });
+        }
       }),
   }),
 });
