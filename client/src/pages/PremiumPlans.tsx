@@ -44,7 +44,16 @@ export default function PremiumPlans({ onClose }: Props) {
     onError: (err) => toast.error(err.message),
   });
 
+  const [adminEmail, setAdminEmail] = useState("");
   const [checkout, setCheckout] = useState<{ pixKey?: string; brCode?: string; qrCodeImage?: string; paymentLinkUrl?: string; value: number } | null>(null);
+
+  const adminActivateMut = trpc.admin.activateUserPremium.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Premium ativado para ${data.email}!`);
+      setAdminEmail("");
+    },
+    onError: (err) => toast.error(err.message),
+  });
 
   const checkoutMut = trpc.premium.checkout.useMutation({
     onSuccess: (data) => {
@@ -331,6 +340,30 @@ export default function PremiumPlans({ onClose }: Props) {
                 }}
               >
                 Começar a usar o Premium
+              </button>
+            </div>
+          )}
+
+          {step === "plans" && user?.role === "admin" && (
+            <div className="pt-3 mt-3 border-t space-y-3" style={{ borderColor: "rgba(201,168,76,0.2)" }}>
+              <p className="text-xs font-bold text-center" style={{ color: "#1A2744" }}>
+                🔧 ADMIN — Ativar Premium por email
+              </p>
+              <input
+                type="email"
+                placeholder="Digite o email do usuário"
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+                className="w-full p-3 rounded-xl text-sm"
+                style={{ background: "white", border: "1px solid #E8E0D0", color: "#1A2744" }}
+              />
+              <button
+                onClick={() => adminActivateMut.mutate({ email: adminEmail, months: 1 })}
+                disabled={adminActivateMut.isPending || !adminEmail}
+                className="w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 disabled:opacity-60"
+                style={{ background: "rgba(26,39,68,0.05)", color: "#3D4F7C", border: "1px dashed rgba(26,39,68,0.2)" }}
+              >
+                {adminActivateMut.isPending ? "Ativando..." : "Ativar Premium"}
               </button>
             </div>
           )}
