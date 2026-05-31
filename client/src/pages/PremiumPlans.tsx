@@ -31,7 +31,6 @@ type Props = {
 
 export default function PremiumPlans({ onClose }: Props) {
   const { user, refresh } = useAuth();
-  const [pixKey, setPixKey] = useState<string | null>(null);
   const [step, setStep] = useState<"plans" | "payment" | "success">("plans");
   const [processing, setProcessing] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -45,9 +44,11 @@ export default function PremiumPlans({ onClose }: Props) {
     onError: (err) => toast.error(err.message),
   });
 
+  const [checkout, setCheckout] = useState<{ pixKey?: string; brCode?: string; qrCodeImage?: string; paymentLinkUrl?: string; value: number } | null>(null);
+
   const checkoutMut = trpc.premium.checkout.useMutation({
     onSuccess: (data) => {
-      setPixKey(data.pixKey);
+      setCheckout(data);
       setStep("payment");
       setProcessing(false);
     },
@@ -77,17 +78,18 @@ export default function PremiumPlans({ onClose }: Props) {
   };
 
   const handleCopyPix = () => {
-    if (pixKey) {
-      navigator.clipboard.writeText(pixKey);
+    const textToCopy = checkout?.brCode || checkout?.pixKey;
+    if (textToCopy) {
+      navigator.clipboard.writeText(textToCopy);
       setCopied(true);
-      toast.success("Chave PIX copiada!");
+      toast.success("Código PIX copiado!");
       setTimeout(() => setCopied(false), 3000);
     }
   };
 
   const handleBack = () => {
     setStep("plans");
-    setPixKey(null);
+    setCheckout(null);
   };
 
   return (
@@ -240,20 +242,31 @@ export default function PremiumPlans({ onClose }: Props) {
             </>
           )}
 
-          {step === "payment" && pixKey && (
+          {step === "payment" && checkout && (
             <div className="text-center space-y-4">
               <p className="text-lg font-bold" style={{ color: "#1A2744", fontFamily: "'Cormorant Garamond', serif" }}>
                 Pagamento via PIX
               </p>
               <p className="text-sm" style={{ color: "#6B6350" }}>
-                Faça um PIX de <strong>R$ 19,90</strong> para a chave abaixo:
+                Faça um PIX de <strong>R$ {checkout.value.toFixed(2)}</strong>
               </p>
+
+              {checkout.qrCodeImage && (
+                <div className="flex justify-center">
+                  <img
+                    src={checkout.qrCodeImage}
+                    alt="QR Code PIX"
+                    className="rounded-xl"
+                    style={{ width: 200, height: 200 }}
+                  />
+                </div>
+              )}
 
               <div
                 className="rounded-xl p-4 text-sm break-all"
                 style={{ background: "#F5F0E8", border: "1px solid #E8E0D0", color: "#1A2744" }}
               >
-                {pixKey}
+                {checkout.brCode || checkout.pixKey}
               </div>
 
               <button
@@ -264,12 +277,20 @@ export default function PremiumPlans({ onClose }: Props) {
                   color: "#E2C47A",
                 }}
               >
-                {copied ? "✓ Copiado!" : "Copiar chave PIX"}
+                {copied ? "✓ Copiado!" : "Copiar código PIX"}
               </button>
 
-              <p className="text-xs" style={{ color: "#A09880" }}>
-                Após enviar o PIX, avise o administrador para ativar seu Premium.
-              </p>
+              {checkout.pixKey && (
+                <p className="text-xs" style={{ color: "#A09880" }}>
+                  Após enviar o PIX, avise o administrador para ativar seu Premium.
+                </p>
+              )}
+
+              {checkout.brCode && (
+                <p className="text-xs" style={{ color: "#A09880" }}>
+                  Após o pagamento, o Premium será ativado automaticamente em até 1 minuto.
+                </p>
+              )}
 
               <div className="pt-3 border-t" style={{ borderColor: "rgba(201,168,76,0.2)" }}>
                 <button

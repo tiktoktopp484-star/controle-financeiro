@@ -8,5 +8,6 @@ export const ENV = {
   get forgeApiUrl() { return process.env.BUILT_IN_FORGE_API_URL ?? ""; },
   get forgeApiKey() { return process.env.BUILT_IN_FORGE_API_KEY ?? ""; },
   get pixKey() { return process.env.PIX_KEY ?? ""; },
+  get openpixAppId() { return process.env.OPENPIX_APP_ID ?? ""; },
   get appUrl() { return process.env.APP_URL ?? "http://localhost:3000"; },
 };

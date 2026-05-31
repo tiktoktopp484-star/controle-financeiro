@@ -6,6 +6,7 @@ import fs from "fs";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
+import { registerOpenPixWebhook } from "../openpixWebhook";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite, PROJECT_ROOT } from "./vite";
@@ -47,6 +48,7 @@ async function startServer() {
   app.use("/uploads", express.static(getUploadsDir()));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+  registerOpenPixWebhook(app);
   // tRPC API
   app.use(
     "/api/trpc",

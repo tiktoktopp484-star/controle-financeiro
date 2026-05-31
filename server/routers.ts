@@ -5,6 +5,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, premiumProcedure, adminProcedure, router } from "./_core/trpc";
 import { sdk } from "./_core/sdk";
+import { ENV } from "./_core/env";
 import { authenticateUser, registerUser, getUserByEmail, deleteUserByEmail, updateLocalUserPremium } from "./authStore";
 import {
   addCard,
@@ -449,16 +450,30 @@ export const appRouter = router({
           });
         }
 
-        const { ENV } = await import("./_core/env");
-        const pixKey = ENV.pixKey;
+        if (ENV.openpixAppId) {
+          const { randomUUID } = await import("crypto");
+          const { createPixCharge } = await import("./openpix");
+          const charge = await createPixCharge(
+            randomUUID(),
+            1990,
+            user.name ?? user.email,
+            user.email
+          );
+          return {
+            brCode: charge.brCode,
+            qrCodeImage: charge.qrCodeImage,
+            paymentLinkUrl: charge.paymentLinkUrl,
+            value: 19.90,
+          };
+        }
 
+        const pixKey = ENV.pixKey;
         if (!pixKey) {
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
             message: "Chave PIX não configurada. Entre em contato com o administrador.",
           });
         }
-
         return { pixKey, value: 19.90 };
       }),
 
