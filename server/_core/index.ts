@@ -10,7 +10,6 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite, PROJECT_ROOT } from "./vite";
 import { getUploadsDir } from "../localUpload";
-import { registerAsaasWebhook } from "../asaasWebhook";
 
 const ALLOWED_ORIGINS = [
   "https://controle-financeiro-x7lb.onrender.com",
@@ -48,7 +47,6 @@ async function startServer() {
   app.use("/uploads", express.static(getUploadsDir()));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
-  registerAsaasWebhook(app);
   // tRPC API
   app.use(
     "/api/trpc",

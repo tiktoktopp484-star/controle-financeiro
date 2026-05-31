@@ -7,8 +7,6 @@ export const ENV = {
   get isProduction() { return process.env.NODE_ENV === "production"; },
   get forgeApiUrl() { return process.env.BUILT_IN_FORGE_API_URL ?? ""; },
   get forgeApiKey() { return process.env.BUILT_IN_FORGE_API_KEY ?? ""; },
-  get asaasApiKey() { return process.env.ASAAS_API_KEY ?? ""; },
-  get asaasEnv() { return process.env.ASAAS_ENV ?? "sandbox"; },
-  get asaasWebhookToken() { return process.env.ASAAS_WEBHOOK_TOKEN ?? ""; },
+  get pixKey() { return process.env.PIX_KEY ?? ""; },
   get appUrl() { return process.env.APP_URL ?? "http://localhost:3000"; },
 };

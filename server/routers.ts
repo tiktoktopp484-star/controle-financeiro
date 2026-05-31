@@ -6,7 +6,6 @@ import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, premiumProcedure, router } from "./_core/trpc";
 import { sdk } from "./_core/sdk";
 import { authenticateUser, registerUser, getUserByEmail, deleteUserByEmail, updateLocalUserPremium } from "./authStore";
-import { asaasService } from "./asaas";
 import {
   addCard,
   addDebt,
@@ -32,7 +31,6 @@ import {
   updateGoal,
   activatePremium as activatePremiumDb,
   deactivatePremium as deactivatePremiumDb,
-  updateAsaasCustomerId,
   getCustomCategories,
   addCustomCategory,
   deleteCustomCategory,
@@ -436,12 +434,7 @@ export const appRouter = router({
   // ── PREMIUM ──────────────────────────────────────────────────────────────────
   premium: router({
     checkout: protectedProcedure
-      .input(
-        z.object({
-          billingType: z.enum(["PIX", "BOLETO", "CREDIT_CARD"]).default("PIX"),
-        })
-      )
-      .mutation(async ({ ctx, input }) => {
+      .mutation(async ({ ctx }) => {
         const user = ctx.user!;
         if (user.premium) {
           throw new TRPCError({
@@ -456,46 +449,17 @@ export const appRouter = router({
           });
         }
 
-        const customer = await asaasService.findOrCreateCustomer(
-          user.name ?? user.email,
-          user.email
-        );
+        const { ENV } = await import("./_core/env");
+        const pixKey = ENV.pixKey;
 
-        if (user.email) {
-          const userByEmail = await getUserByEmail(user.email);
-          if (userByEmail) {
-            await updateLocalUserPremium(user.email, false, null);
-          }
+        if (!pixKey) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Chave PIX não configurada. Entre em contato com o administrador.",
+          });
         }
 
-        const nextDueDate = new Date();
-        nextDueDate.setDate(nextDueDate.getDate() + 1);
-        const dueDateStr = nextDueDate.toISOString().split("T")[0];
-
-        const result = await asaasService.createSubscription(
-          customer.id,
-          19.90,
-          input.billingType,
-          dueDateStr
-        );
-
-        try {
-          await updateAsaasCustomerId(user.id, customer.id);
-        } catch {
-          // DB not available, skip
-        }
-
-        const payment = result.payment;
-        return {
-          subscriptionId: result.subscription.id,
-          paymentId: payment?.id ?? null,
-          billingType: payment?.billingType ?? input.billingType,
-          status: payment?.status ?? "PENDING",
-          pixQrCode: payment?.pixQrCode ?? null,
-          bankSlipUrl: payment?.bankSlipUrl ?? null,
-          invoiceUrl: payment?.invoiceUrl ?? null,
-          value: 19.90,
-        };
+        return { pixKey, value: 19.90 };
       }),
 
     verify: protectedProcedure.query(async ({ ctx }) => {
@@ -546,10 +510,6 @@ export const appRouter = router({
     }),
 
     manualActivate: protectedProcedure.mutation(async ({ ctx }) => {
-      const env = process.env.ASAAS_ENV;
-      if (env !== "sandbox" && env !== "development") {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Apenas disponível em modo de teste" });
-      }
       const user = ctx.user!;
       if (!user.email) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Email não encontrado" });
@@ -563,6 +523,26 @@ export const appRouter = router({
         premiumUntil: premiumUntil.toISOString(),
       };
     }),
+  }),
+
+  admin: router({
+    activateUserPremium: adminProcedure
+      .input(z.object({ email: z.string().email(), months: z.number().min(1).default(1) }))
+      .mutation(async ({ input }) => {
+        const user = await getUserByEmail(input.email);
+        if (!user) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Usuário não encontrado" });
+        }
+        const now = new Date();
+        const premiumUntil = new Date(now.setMonth(now.getMonth() + input.months));
+        await updateLocalUserPremium(input.email, true, premiumUntil.toISOString());
+        return {
+          success: true,
+          email: input.email,
+          premium: true,
+          premiumUntil: premiumUntil.toISOString(),
+        };
+      }),
   }),
 
   // ── CATEGORIAS PERSONALIZADAS (Premium) ─────────────────────────────────────

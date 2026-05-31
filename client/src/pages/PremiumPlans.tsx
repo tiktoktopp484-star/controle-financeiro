@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -29,129 +29,12 @@ type Props = {
   onClose: () => void;
 };
 
-type BillingType = "PIX" | "BOLETO" | "CREDIT_CARD";
-
-function PixPayment({ checkout, onBack }: { checkout: { pixQrCode: { encodedImage: string; payload: string } | null }; onBack: () => void }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    if (checkout.pixQrCode?.payload) {
-      navigator.clipboard.writeText(checkout.pixQrCode.payload);
-      setCopied(true);
-      toast.success("Código Pix copiado!");
-      setTimeout(() => setCopied(false), 3000);
-    }
-  };
-
-  return (
-    <div className="text-center">
-      <p className="text-lg font-bold mb-2" style={{ color: "#1A2744", fontFamily: "'Cormorant Garamond', serif" }}>
-        Pagamento via Pix
-      </p>
-      <p className="text-xs mb-4" style={{ color: "#6B6350" }}>
-        Escaneie o QR Code ou copie o código Pix
-      </p>
-      {checkout.pixQrCode?.encodedImage && (
-        <div className="flex justify-center mb-4">
-          <img
-            src={`data:image/png;base64,${checkout.pixQrCode.encodedImage}`}
-            alt="QR Code Pix"
-            className="rounded-xl"
-            style={{ width: 200, height: 200 }}
-          />
-        </div>
-      )}
-      {checkout.pixQrCode?.payload && (
-        <div className="mb-4">
-          <div
-            className="rounded-xl p-3 text-xs break-all mb-2"
-            style={{ background: "#F5F0E8", border: "1px solid #E8E0D0", color: "#6B6350" }}
-          >
-            {checkout.pixQrCode.payload}
-          </div>
-          <button
-            onClick={handleCopy}
-            className="w-full py-3 rounded-xl text-sm font-bold transition-all active:scale-95"
-            style={{
-              background: "linear-gradient(135deg, #1A2744 0%, #243460 100%)",
-              color: "#E2C47A",
-            }}
-          >
-            {copied ? "✓ Copiado!" : "Copiar código Pix"}
-          </button>
-        </div>
-      )}
-      <p className="text-xs" style={{ color: "#A09880" }}>
-        Após o pagamento, o Premium será ativado automaticamente em até 2 minutos
-      </p>
-
-      <div className="pt-3 mt-3 border-t" style={{ borderColor: "rgba(201,168,76,0.2)" }}>
-        <button
-          onClick={onBack}
-          className="text-sm font-semibold"
-          style={{ color: "#6B6350" }}
-        >
-          Voltar
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function BoletoPayment({ checkout, onBack }: { checkout: { bankSlipUrl: string | null; invoiceUrl: string | null }; onBack: () => void }) {
-  const url = checkout.bankSlipUrl || checkout.invoiceUrl;
-  return (
-    <div className="text-center">
-      <p className="text-lg font-bold mb-2" style={{ color: "#1A2744", fontFamily: "'Cormorant Garamond', serif" }}>
-        Boleto Bancário
-      </p>
-      <p className="text-xs mb-6" style={{ color: "#6B6350" }}>
-        Clique no botão abaixo para visualizar e pagar o boleto
-      </p>
-      {url ? (
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block w-full py-3 rounded-xl text-sm font-bold text-center transition-all active:scale-95"
-          style={{
-            background: "linear-gradient(135deg, #1A2744 0%, #243460 100%)",
-            color: "#E2C47A",
-          }}
-        >
-          Visualizar Boleto
-        </a>
-      ) : (
-        <p className="text-sm" style={{ color: "#C0392B" }}>Erro ao gerar boleto. Tente Pix.</p>
-      )}
-      <button
-        onClick={onBack}
-        className="mt-4 text-sm font-semibold"
-        style={{ color: "#6B6350" }}
-      >
-        Voltar
-      </button>
-    </div>
-  );
-}
-
-type CheckoutData = {
-  subscriptionId: string;
-  paymentId: string | null;
-  billingType: string;
-  status: string;
-  pixQrCode: { encodedImage: string; payload: string } | null;
-  bankSlipUrl: string | null;
-  invoiceUrl: string | null;
-  value: number;
-};
-
 export default function PremiumPlans({ onClose }: Props) {
   const { user, refresh } = useAuth();
-  const [checkout, setCheckout] = useState<CheckoutData | null>(null);
+  const [pixKey, setPixKey] = useState<string | null>(null);
   const [step, setStep] = useState<"plans" | "payment" | "success">("plans");
   const [processing, setProcessing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<BillingType | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const manualActivateMut = trpc.premium.manualActivate.useMutation({
     onSuccess: () => {
@@ -162,17 +45,9 @@ export default function PremiumPlans({ onClose }: Props) {
     onError: (err) => toast.error(err.message),
   });
 
-  const cancelMut = trpc.premium.cancel.useMutation({
-    onSuccess: () => {
-      toast.success("Assinatura cancelada");
-      refresh();
-    },
-    onError: (err) => toast.error(err.message),
-  });
-
   const checkoutMut = trpc.premium.checkout.useMutation({
     onSuccess: (data) => {
-      setCheckout(data);
+      setPixKey(data.pixKey);
       setStep("payment");
       setProcessing(false);
     },
@@ -192,20 +67,27 @@ export default function PremiumPlans({ onClose }: Props) {
     },
   });
 
-  const handleSubscribe = (billingType: BillingType) => {
-    setPaymentMethod(billingType);
+  const handleSubscribe = () => {
     setProcessing(true);
-    checkoutMut.mutate({ billingType });
+    checkoutMut.mutate();
   };
 
   const handleTrial = () => {
     activateTrialMut.mutate();
   };
 
+  const handleCopyPix = () => {
+    if (pixKey) {
+      navigator.clipboard.writeText(pixKey);
+      setCopied(true);
+      toast.success("Chave PIX copiada!");
+      setTimeout(() => setCopied(false), 3000);
+    }
+  };
+
   const handleBack = () => {
     setStep("plans");
-    setCheckout(null);
-    setPaymentMethod(null);
+    setPixKey(null);
   };
 
   return (
@@ -342,14 +224,15 @@ export default function PremiumPlans({ onClose }: Props) {
                       </button>
                     )}
                     <button
-                      onClick={() => setStep("payment")}
-                      className="w-full py-3 rounded-xl text-sm font-bold transition-all active:scale-95"
+                      onClick={handleSubscribe}
+                      disabled={processing}
+                      className="w-full py-3 rounded-xl text-sm font-bold transition-all active:scale-95 disabled:opacity-60"
                       style={{
                         background: "linear-gradient(135deg, #C9A84C 0%, #E2C47A 100%)",
                         color: "#1A2744",
                       }}
                     >
-                      Assinar Premium
+                      {processing ? "Carregando..." : "Assinar Premium"}
                     </button>
                   </div>
                 )}
@@ -357,109 +240,51 @@ export default function PremiumPlans({ onClose }: Props) {
             </>
           )}
 
-          {step === "payment" && !checkout && (
-            <div className="space-y-3">
-              <p className="text-sm font-semibold text-center mb-4" style={{ color: "#1A2744" }}>
-                Escolha a forma de pagamento
+          {step === "payment" && pixKey && (
+            <div className="text-center space-y-4">
+              <p className="text-lg font-bold" style={{ color: "#1A2744", fontFamily: "'Cormorant Garamond', serif" }}>
+                Pagamento via PIX
               </p>
-              <button
-                onClick={() => handleSubscribe("PIX")}
-                disabled={processing}
-                className="w-full p-4 rounded-xl text-left flex items-center gap-3 transition-all active:scale-95 disabled:opacity-60"
-                style={{ background: "white", border: "1px solid rgba(201,168,76,0.2)" }}
-              >
-                <span className="text-2xl">⚡</span>
-                <div>
-                  <p className="text-sm font-bold" style={{ color: "#1A2744" }}>Pix</p>
-                  <p className="text-xs" style={{ color: "#A09880" }}>Pagamento instantâneo</p>
-                </div>
-                <span className="ml-auto text-xs font-semibold" style={{ color: "#2D7A4F" }}>✓ Aprovação na hora</span>
-              </button>
-              <button
-                onClick={() => handleSubscribe("BOLETO")}
-                disabled={processing}
-                className="w-full p-4 rounded-xl text-left flex items-center gap-3 transition-all active:scale-95 disabled:opacity-60"
-                style={{ background: "white", border: "1px solid rgba(201,168,76,0.2)" }}
-              >
-                <span className="text-2xl">📄</span>
-                <div>
-                  <p className="text-sm font-bold" style={{ color: "#1A2744" }}>Boleto Bancário</p>
-                  <p className="text-xs" style={{ color: "#A09880" }}>Vencimento em 3 dias úteis</p>
-                </div>
-              </button>
-              <button
-                onClick={() => handleSubscribe("CREDIT_CARD")}
-                disabled={processing}
-                className="w-full p-4 rounded-xl text-left flex items-center gap-3 transition-all active:scale-95 disabled:opacity-60"
-                style={{ background: "white", border: "1px solid rgba(201,168,76,0.2)" }}
-              >
-                <span className="text-2xl">💳</span>
-                <div>
-                  <p className="text-sm font-bold" style={{ color: "#1A2744" }}>Cartão de Crédito</p>
-                  <p className="text-xs" style={{ color: "#A09880" }}>Pagamento recorrente mensal</p>
-                </div>
-              </button>
-              {processing && (
-                <div className="text-center py-4">
-                  <div className="spinner mx-auto mb-2" />
-                  <p className="text-xs" style={{ color: "#A09880" }}>Processando...</p>
-                </div>
-              )}
+              <p className="text-sm" style={{ color: "#6B6350" }}>
+                Faça um PIX de <strong>R$ 19,90</strong> para a chave abaixo:
+              </p>
 
-              <div className="pt-2 border-t" style={{ borderColor: "rgba(201,168,76,0.2)" }}>
-                <p className="text-xs text-center mb-2" style={{ color: "#A09880" }}>
-                  🧪 Modo de teste — ative manualmente:
-                </p>
+              <div
+                className="rounded-xl p-4 text-sm break-all"
+                style={{ background: "#F5F0E8", border: "1px solid #E8E0D0", color: "#1A2744" }}
+              >
+                {pixKey}
+              </div>
+
+              <button
+                onClick={handleCopyPix}
+                className="w-full py-3 rounded-xl text-sm font-bold transition-all active:scale-95"
+                style={{
+                  background: "linear-gradient(135deg, #1A2744 0%, #243460 100%)",
+                  color: "#E2C47A",
+                }}
+              >
+                {copied ? "✓ Copiado!" : "Copiar chave PIX"}
+              </button>
+
+              <p className="text-xs" style={{ color: "#A09880" }}>
+                Após enviar o PIX, avise o administrador para ativar seu Premium.
+              </p>
+
+              <div className="pt-3 border-t" style={{ borderColor: "rgba(201,168,76,0.2)" }}>
                 <button
                   onClick={() => manualActivateMut.mutate()}
                   disabled={manualActivateMut.isPending}
                   className="w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 disabled:opacity-60"
                   style={{ background: "rgba(26,39,68,0.05)", color: "#3D4F7C", border: "1px dashed rgba(26,39,68,0.2)" }}
                 >
-                  {manualActivateMut.isPending ? "Ativando..." : "🔓 Ativar Premium Manualmente (teste)"}
+                  {manualActivateMut.isPending ? "Ativando..." : "🔓 Já paguei — Ativar Premium"}
                 </button>
               </div>
 
               <button
                 onClick={handleBack}
                 className="w-full py-2 text-sm font-semibold"
-                style={{ color: "#6B6350" }}
-              >
-                Voltar
-              </button>
-            </div>
-          )}
-
-          {step === "payment" && checkout && paymentMethod === "PIX" && (
-            <PixPayment checkout={checkout} onBack={handleBack} />
-          )}
-
-          {step === "payment" && checkout && paymentMethod === "BOLETO" && (
-            <BoletoPayment checkout={checkout} onBack={handleBack} />
-          )}
-
-          {step === "payment" && checkout && paymentMethod === "CREDIT_CARD" && (
-            <div className="text-center">
-              <p className="text-lg font-bold mb-2" style={{ color: "#1A2744", fontFamily: "'Cormorant Garamond', serif" }}>
-                Cartão de Crédito
-              </p>
-              <p className="text-xs mb-4" style={{ color: "#6B6350" }}>
-                Sua assinatura foi criada com sucesso!
-              </p>
-              <p className="text-sm mb-6" style={{ color: "#A09880" }}>
-                O pagamento será processado pelo Asaas. Assim que confirmado, seu Premium será ativado automaticamente.
-              </p>
-              <div
-                className="rounded-xl p-4 mb-4 text-left"
-                style={{ background: "#F5F0E8", border: "1px solid rgba(26,39,68,0.1)" }}
-              >
-                <p className="text-xs" style={{ color: "#6B6350" }}>
-                  ID da assinatura: <span className="font-mono">{checkout.subscriptionId}</span>
-                </p>
-              </div>
-              <button
-                onClick={handleBack}
-                className="text-sm font-semibold"
                 style={{ color: "#6B6350" }}
               >
                 Voltar
