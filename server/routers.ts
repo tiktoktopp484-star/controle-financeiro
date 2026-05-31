@@ -3,7 +3,7 @@ import { z } from "zod";
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { protectedProcedure, publicProcedure, premiumProcedure, router } from "./_core/trpc";
+import { protectedProcedure, publicProcedure, premiumProcedure, adminProcedure, router } from "./_core/trpc";
 import { sdk } from "./_core/sdk";
 import { authenticateUser, registerUser, getUserByEmail, deleteUserByEmail, updateLocalUserPremium } from "./authStore";
 import {
