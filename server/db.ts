@@ -394,3 +394,12 @@ export async function deleteBudget(id: number, userId: number) {
   if (!db) throw new Error("DB unavailable");
   await db.delete(budgets).where(and(eq(budgets.id, id), eq(budgets.userId, userId)));
 }
+
+export async function getAllUsers() {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  return await db
+    .select({ id: users.id, name: users.name, email: users.email, premium: users.premium, premiumUntil: users.premiumUntil, role: users.role })
+    .from(users)
+    .orderBy(users.email);
+}

@@ -13,6 +13,7 @@ import Calendario from "./Calendario";
 import Graficos from "./Graficos";
 import Orcamentos from "./Orcamentos";
 import PremiumPlans from "./PremiumPlans";
+import AdminPanel from "./AdminPanel";
 
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -253,6 +254,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("despesas");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
 
   const { data: expenses = [] } = trpc.expenses.list.useQuery();
   const { data: incomes = [] } = trpc.incomes.list.useQuery();
@@ -368,6 +370,19 @@ export default function Home() {
               }}
             >
               Premium
+            </button>
+          )}
+          {user?.role === "admin" && (
+            <button
+              onClick={() => setShowAdmin(true)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95"
+              style={{
+                background: "rgba(26,39,68,0.08)",
+                color: "#3D4F7C",
+                border: "1px solid rgba(26,39,68,0.12)",
+              }}
+            >
+              Admin
             </button>
           )}
           <button
@@ -495,6 +510,9 @@ export default function Home() {
 
       {/* Premium Plans Modal */}
       {showPremium && <PremiumPlans onClose={() => { setShowPremium(false); refresh(); }} />}
+
+      {/* Admin Panel */}
+      {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} />}
     </div>
   );
 }

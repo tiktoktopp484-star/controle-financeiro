@@ -541,6 +541,11 @@ export const appRouter = router({
   }),
 
   admin: router({
+    listUsers: adminProcedure.query(async () => {
+      const { getAllUsers } = await import("./db");
+      return await getAllUsers();
+    }),
+
     activateUserPremium: adminProcedure
       .input(z.object({ email: z.string().email(), months: z.number().min(1).default(1) }))
       .mutation(async ({ input }) => {
