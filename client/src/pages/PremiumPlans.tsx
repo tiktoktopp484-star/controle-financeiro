@@ -335,7 +335,7 @@ export default function PremiumPlans({ onClose }: Props) {
             </div>
           )}
 
-          {step === "plans" && user?.role === "admin" && (
+          {step === "plans" && (user as any)?.isAdmin && (
             <div className="pt-3 mt-3 border-t space-y-3" style={{ borderColor: "rgba(201,168,76,0.2)" }}>
               <p className="text-xs font-bold text-center" style={{ color: "#1A2744" }}>
                 🔧 ADMIN — Ativar Premium por email

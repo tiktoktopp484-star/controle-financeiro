@@ -372,7 +372,7 @@ export default function Home() {
               Premium
             </button>
           )}
-          {user?.role === "admin" && (
+          {(user as any)?.isAdmin && (
             <button
               onClick={() => setShowAdmin(true)}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95"

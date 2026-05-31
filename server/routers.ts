@@ -67,7 +67,11 @@ export const appRouter = router({
   system: systemRouter,
 
   auth: router({
-    me: publicProcedure.query((opts) => opts.ctx.user),
+    me: publicProcedure.query((opts) => {
+      const user = opts.ctx.user;
+      if (!user) return null;
+      return { ...user, isAdmin: user.role === "admin" };
+    }),
 
     register: publicProcedure
       .input(
