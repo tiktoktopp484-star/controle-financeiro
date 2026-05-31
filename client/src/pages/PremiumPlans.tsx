@@ -301,16 +301,7 @@ export default function PremiumPlans({ onClose }: Props) {
                 </p>
               )}
 
-              <div className="pt-3 border-t" style={{ borderColor: "rgba(201,168,76,0.2)" }}>
-                <button
-                  onClick={() => manualActivateMut.mutate()}
-                  disabled={manualActivateMut.isPending}
-                  className="w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 disabled:opacity-60"
-                  style={{ background: "rgba(26,39,68,0.05)", color: "#3D4F7C", border: "1px dashed rgba(26,39,68,0.2)" }}
-                >
-                  {manualActivateMut.isPending ? "Ativando..." : "🔓 Já paguei — Ativar Premium"}
-                </button>
-              </div>
+
 
               <button
                 onClick={handleBack}
