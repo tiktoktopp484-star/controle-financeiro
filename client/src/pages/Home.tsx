@@ -513,6 +513,11 @@ export default function Home() {
 
       {/* Admin Panel */}
       {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} />}
+
+      {/* Debug - remove depois */}
+      <div className="fixed bottom-0 left-0 right-0 p-1 text-[10px] text-center z-50" style={{ background: "#1A2744", color: "#E2C47A" }}>
+        user? {user ? "sim" : "não"} | role: {(user as any)?.role} | isAdmin: {JSON.stringify((user as any)?.isAdmin)} | email: {user?.email}
+      </div>
     </div>
   );
 }
