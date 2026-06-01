@@ -554,6 +554,17 @@ export const appRouter = router({
         premiumUntil: premiumUntil.toISOString(),
       };
     }),
+
+    requestActivation: protectedProcedure.mutation(async ({ ctx }) => {
+      const user = ctx.user!;
+      if (!user.email) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Email não encontrado" });
+      }
+      const msg = `🔔 Novo pedido Premium!\n\nEmail: ${user.email}\nNome: ${user.name || "—"}\n\nAtive pelo painel Admin no app.`;
+      const { sendWhatsApp } = await import("./_core/notification");
+      const sent = await sendWhatsApp(msg);
+      return { success: true, notified: sent };
+    }),
   }),
 
   admin: router({

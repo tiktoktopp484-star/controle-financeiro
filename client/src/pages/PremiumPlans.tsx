@@ -44,6 +44,17 @@ export default function PremiumPlans({ onClose }: Props) {
     onError: (err) => toast.error(err.message),
   });
 
+  const requestActivationMut = trpc.premium.requestActivation.useMutation({
+    onSuccess: (data) => {
+      if (data.notified) {
+        toast.success("Administrador notificado! Aguarde a ativação.");
+      } else {
+        toast.error("WhatsApp não configurado. Avise o admin por outro meio.");
+      }
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   const [adminEmail, setAdminEmail] = useState("");
   const [checkout, setCheckout] = useState<{ pixKey?: string; brCode?: string; qrCodeImage?: string; paymentLinkUrl?: string; value: number } | null>(null);
 
@@ -291,7 +302,7 @@ export default function PremiumPlans({ onClose }: Props) {
 
               {checkout.pixKey && (
                 <p className="text-xs" style={{ color: "#A09880" }}>
-                  Após enviar o PIX, avise o administrador para ativar seu Premium.
+                  Após enviar o PIX, clique abaixo para avisar o administrador.
                 </p>
               )}
 
@@ -301,7 +312,19 @@ export default function PremiumPlans({ onClose }: Props) {
                 </p>
               )}
 
-
+              {checkout?.pixKey && (
+                <button
+                  onClick={() => requestActivationMut.mutate()}
+                  disabled={requestActivationMut.isPending}
+                  className="w-full py-3 rounded-xl text-sm font-bold transition-all active:scale-95 disabled:opacity-60"
+                  style={{
+                    background: "linear-gradient(135deg, #25D366 0%, #128C7E 100%)",
+                    color: "#fff",
+                  }}
+                >
+                  {requestActivationMut.isPending ? "Enviando..." : "💬 Solicitar Ativação via WhatsApp"}
+                </button>
+              )}
 
               <button
                 onClick={handleBack}

@@ -112,3 +112,22 @@ export async function notifyOwner(
     return false;
   }
 }
+
+export async function sendWhatsApp(text: string): Promise<boolean> {
+  if (!ENV.whatsappPhone || !ENV.whatsappApiKey) {
+    console.warn("[WhatsApp] PHONE or API_KEY not configured");
+    return false;
+  }
+  try {
+    const url = `https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(ENV.whatsappPhone)}&text=${encodeURIComponent(text)}&apikey=${encodeURIComponent(ENV.whatsappApiKey)}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.warn(`[WhatsApp] API error: ${res.status}`);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn("[WhatsApp] Error:", error);
+    return false;
+  }
+}

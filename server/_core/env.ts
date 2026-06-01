@@ -10,4 +10,6 @@ export const ENV = {
   get pixKey() { return process.env.PIX_KEY ?? ""; },
   get openpixAppId() { return process.env.OPENPIX_APP_ID ?? ""; },
   get appUrl() { return process.env.APP_URL ?? "http://localhost:3000"; },
+  get whatsappPhone() { return process.env.WHATSAPP_PHONE ?? ""; },
+  get whatsappApiKey() { return process.env.WHATSAPP_API_KEY ?? ""; },
 };
