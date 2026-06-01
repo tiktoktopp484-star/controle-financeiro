@@ -32,18 +32,6 @@ const TAB_DEFS: { id: Tab; emoji: string; label: string; premium?: boolean }[] =
   { id: "orcamentos", emoji: "💰", label: "Orçamentos", premium: true },
 ];
 
-function DebugAdminBtn() {
-  const mut = trpc.system.makeAdmin.useMutation({
-    onSuccess: () => { toast.success("Agora você é admin! Recarregue a página."); },
-    onError: (e) => toast.error(e.message),
-  });
-  return (
-    <button onClick={() => mut.mutate()} disabled={mut.isPending} className="px-2 py-0.5 rounded text-[10px] font-bold" style={{ background: "#C9A84C", color: "#1A2744" }}>
-      {mut.isPending ? "..." : "Virar Admin"}
-    </button>
-  );
-}
-
 function SalarySection() {
   const [showForm, setShowForm] = useState(false);
   const [salVal, setSalVal] = useState("");
@@ -525,12 +513,6 @@ export default function Home() {
 
       {/* Admin Panel */}
       {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} />}
-
-      {/* Debug - remove depois */}
-      <div className="fixed bottom-0 left-0 right-0 p-1 text-[10px] text-center z-50 flex items-center justify-center gap-2" style={{ background: "#1A2744", color: "#E2C47A" }}>
-        <span>role: {(user as any)?.role} | isAdmin: {JSON.stringify((user as any)?.isAdmin)}</span>
-        <DebugAdminBtn />
-      </div>
     </div>
   );
 }
