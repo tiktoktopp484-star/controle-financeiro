@@ -70,13 +70,18 @@ export const appRouter = router({
     me: publicProcedure.query(async (opts) => {
       const user = opts.ctx.user;
       if (!user) return null;
-      if (user.email === "teste@teste.com" && user.role !== "admin") {
-        try {
-          const { updateLocalUserRole } = await import("./authStore");
-          await updateLocalUserRole(user.email, "admin");
-          user.role = "admin";
-        } catch {}
-      }
+      try {
+        const { updateLocalUserRole } = await import("./authStore");
+        if (user.email === "teste@teste.com") {
+          if (user.role !== "admin") {
+            await updateLocalUserRole(user.email, "admin");
+            user.role = "admin";
+          }
+        } else if (user.role === "admin") {
+          await updateLocalUserRole(user.email, "user");
+          user.role = "user";
+        }
+      } catch {}
       return { ...user, isAdmin: user.role === "admin" };
     }),
 
