@@ -201,6 +201,22 @@ export async function updateLocalUserPremium(
   return fileUsers[idx];
 }
 
+export async function updateLocalUserRole(email: string, role: "user" | "admin"): Promise<StoredUser | null> {
+  const db = await getDb();
+  if (db) {
+    await db.update(users).set({ role }).where(eq(users.email, email));
+    const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    if (rows.length > 0) return fromDbRow(rows[0]);
+  }
+
+  const fileUsers = readUsers();
+  const idx = fileUsers.findIndex((u) => u.email === email);
+  if (idx === -1) return null;
+  fileUsers[idx].role = role;
+  writeUsers(fileUsers);
+  return fileUsers[idx];
+}
+
 export async function deleteUserByEmail(email: string): Promise<boolean> {
   const db = await getDb();
   if (db) {

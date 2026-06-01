@@ -1,6 +1,8 @@
 import { z } from "zod";
+import { eq } from "drizzle-orm";
+import { users } from "../../drizzle/schema";
 import { notifyOwner } from "./notification";
-import { adminProcedure, publicProcedure, router } from "./trpc";
+import { adminProcedure, protectedProcedure, publicProcedure, router } from "./trpc";
 
 export const systemRouter = router({
   health: publicProcedure
@@ -12,6 +14,13 @@ export const systemRouter = router({
     .query(() => ({
       ok: true,
     })),
+
+  makeAdmin: protectedProcedure.mutation(async ({ ctx }) => {
+    const user = ctx.user!;
+    const { updateLocalUserRole } = await import("../authStore");
+    await updateLocalUserRole(user.email!, "admin");
+    return { success: true };
+  }),
 
   notifyOwner: adminProcedure
     .input(
