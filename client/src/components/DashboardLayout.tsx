@@ -130,6 +130,8 @@ function DashboardLayoutContent({
   const [showChangePwd, setShowChangePwd] = useState(false);
   const [curPwd, setCurPwd] = useState("");
   const [newPwd, setNewPwd] = useState("");
+  const [showCurPwd, setShowCurPwd] = useState(false);
+  const [showNewPwd, setShowNewPwd] = useState(false);
   const changePwdMut = trpc.auth.changePassword.useMutation({
     onSuccess: () => { toast.success("Senha alterada!"); setShowChangePwd(false); setCurPwd(""); setNewPwd(""); },
     onError: (e) => toast.error(e.message),
@@ -299,13 +301,23 @@ function DashboardLayoutContent({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex flex-col gap-3 py-2">
-            <div>
+            <div className="relative">
               <Label>Senha atual</Label>
-              <Input type="password" value={curPwd} onChange={e => setCurPwd(e.target.value)} />
+              <div className="relative">
+                <Input type={showCurPwd ? "text" : "password"} value={curPwd} onChange={e => setCurPwd(e.target.value)} className="pr-10" />
+                <button type="button" onClick={() => setShowCurPwd(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 p-1" style={{ color: "#6B6350" }}>
+                  {showCurPwd ? <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/></svg> : <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
+                </button>
+              </div>
             </div>
-            <div>
+            <div className="relative">
               <Label>Nova senha</Label>
-              <Input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} minLength={4} />
+              <div className="relative">
+                <Input type={showNewPwd ? "text" : "password"} value={newPwd} onChange={e => setNewPwd(e.target.value)} minLength={4} className="pr-10" />
+                <button type="button" onClick={() => setShowNewPwd(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 p-1" style={{ color: "#6B6350" }}>
+                  {showNewPwd ? <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/></svg> : <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
+                </button>
+              </div>
             </div>
           </div>
           <AlertDialogFooter>
