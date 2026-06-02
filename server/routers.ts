@@ -6,13 +6,9 @@ import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, premiumProcedure, adminProcedure, router } from "./_core/trpc";
 import { sdk } from "./_core/sdk";
 import { ENV } from "./_core/env";
-import { authenticateUser, registerUser, getUserByEmail, deleteUserByEmail, updateLocalUserPremium, updateUserPaymentReceipt, markTrialUsed, resetPassword, changePassword, hashPassword } from "./authStore";
+import { authenticateUser, registerUser, getUserByEmail, deleteUserByEmail, updateLocalUserPremium, updateUserPaymentReceipt, markTrialUsed, resetPassword, changePassword } from "./authStore";
 import { sendWhatsApp } from "./_core/notification";
 import { sendResetLink } from "./email";
-import { SignJWT, jwtVerify } from "jose";
-import { eq } from "drizzle-orm";
-import { users } from "../drizzle/schema";
-import { getDb } from "./db";
 import {
   addCard,
   addDebt,
@@ -166,39 +162,12 @@ export const appRouter = router({
     forgotPassword: publicProcedure
       .input(z.object({ email: z.string().email("Email inválido") }))
       .mutation(async ({ input }) => {
-        const secret = new TextEncoder().encode(ENV.cookieSecret);
-        const token = await new SignJWT({ email: input.email })
-          .setProtectedHeader({ alg: "HS256" })
-          .setExpirationTime("1h")
-          .sign(secret);
-        const sent = await sendResetLink(input.email, token);
+        const newPassword = await resetPassword(input.email);
+        const sent = await sendResetLink(input.email, newPassword);
         if (!sent) {
-          await sendWhatsApp(`[CF] Alguém pediu reset de senha: ${input.email}`);
+          await sendWhatsApp(`[CF] Nova senha para ${input.email}: ${newPassword}`);
         }
-        return { message: "Se o email existir, você receberá um link para redefinir a senha." };
-      }),
-
-    resetPasswordConfirm: publicProcedure
-      .input(z.object({ token: z.string(), newPassword: z.string().min(4, "Mínimo 4 caracteres") }))
-      .mutation(async ({ input }) => {
-        const secret = new TextEncoder().encode(ENV.cookieSecret);
-        let email: string;
-        try {
-          const { payload } = await jwtVerify(input.token, secret);
-          email = payload.email as string;
-        } catch {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Link inválido ou expirado" });
-        }
-        const user = await getUserByEmail(email);
-        if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "Usuário não encontrado" });
-        const newHash = hashPassword(input.newPassword);
-        const db = await getDb();
-        if (db) {
-          try {
-            await db.update(users).set({ passwordHash: newHash }).where(eq(users.email, email));
-          } catch { /* fallback */ }
-        }
-        return { message: "Senha alterada com sucesso! Faça login." };
+        return { newPassword, message: sent ? "Nova senha enviada para seu email" : `Nova senha: ${newPassword}. Anote e faça login.` };
       }),
 
     logout: publicProcedure.mutation(({ ctx }) => {

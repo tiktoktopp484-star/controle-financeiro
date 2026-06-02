@@ -11,25 +11,21 @@ function getResend() {
 
 const appUrl = () => process.env.APP_URL || "https://controle-financeiro-x7lb.onrender.com";
 
-export async function sendResetLink(email: string, token: string): Promise<boolean> {
+export async function sendResetLink(email: string, newPassword: string): Promise<boolean> {
   const client = getResend();
   if (!client) return false;
-  const link = `${appUrl()}/reset-password?token=${token}`;
   try {
     const { error } = await client.emails.send({
       from: "Controle Financeiro <onboarding@resend.dev>",
       to: email,
-      subject: "Redefinir sua senha - Controle Financeiro",
+      subject: "Sua nova senha - Controle Financeiro",
       html: `
         <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
           <h2 style="color: #1A2744;">Controle Financeiro</h2>
-          <p>Recebemos um pedido de redefinição de senha.</p>
-          <p>Clique no botão abaixo para criar uma nova senha:</p>
-          <p><a href="${link}" style="display: inline-block; padding: 12px 28px; background: #1A2744; color: #E2C47A; text-decoration: none; border-radius: 8px; font-size: 16px;">Redefinir Senha</a></p>
-          <p style="color: #888; font-size: 14px;">Este link expira em 1 hora.</p>
-          <p style="color: #888; font-size: 14px;">Se você não solicitou, ignore este email.</p>
-          <hr style="margin: 24px 0;" />
-          <p style="color: #aaa; font-size: 12px;">Controle Financeiro</p>
+          <p>Sua senha foi redefinida.</p>
+          <p><strong>Nova senha:</strong> <code style="background: #f4f4f4; padding: 4px 8px; border-radius: 4px;">${newPassword}</code></p>
+          <p>Recomendamos alterar após o login em "Alterar Senha".</p>
+          <p><a href="${appUrl()}" style="display: inline-block; padding: 10px 24px; background: #1A2744; color: #E2C47A; text-decoration: none; border-radius: 8px;">Acessar Controle Financeiro</a></p>
         </div>
       `,
     });
