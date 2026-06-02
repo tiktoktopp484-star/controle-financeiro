@@ -6,7 +6,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, premiumProcedure, adminProcedure, router } from "./_core/trpc";
 import { sdk } from "./_core/sdk";
 import { ENV } from "./_core/env";
-import { authenticateUser, registerUser, getUserByEmail, deleteUserByEmail, updateLocalUserPremium, updateUserPaymentReceipt, markTrialUsed, resetPassword } from "./authStore";
+import { authenticateUser, registerUser, getUserByEmail, deleteUserByEmail, updateLocalUserPremium, updateUserPaymentReceipt, markTrialUsed, resetPassword, changePassword } from "./authStore";
 import { sendWhatsApp } from "./_core/notification";
 import { sendPasswordResetEmail } from "./email";
 import {
@@ -205,6 +205,16 @@ export const appRouter = router({
         const newPassword = await resetPassword(input.email);
         await sendWhatsApp(`[CF] Admin redefiniu senha de ${input.email}: ${newPassword}`);
         return { newPassword, message: "Senha redefinida com sucesso" };
+      }),
+    changePassword: protectedProcedure
+      .input(z.object({
+        currentPassword: z.string().min(1),
+        newPassword: z.string().min(4, "Nova senha deve ter no mínimo 4 caracteres"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const ok = await changePassword(ctx.user.email, input.currentPassword, input.newPassword);
+        if (!ok) throw new TRPCError({ code: "UNAUTHORIZED", message: "Senha atual incorreta" });
+        return { message: "Senha alterada com sucesso" };
       }),
   }),
 

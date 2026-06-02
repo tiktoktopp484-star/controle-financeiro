@@ -1,6 +1,16 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -20,11 +30,15 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, Users } from "lucide-react";
+import { trpc } from "@/lib/trpc";
+import { LayoutDashboard, Lock, LogOut, PanelLeft, Users } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { toast } from "sonner";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Page 1", path: "/" },
@@ -113,6 +127,13 @@ function DashboardLayoutContent({
   const sidebarRef = useRef<HTMLDivElement>(null);
   const activeMenuItem = menuItems.find(item => item.path === location);
   const isMobile = useIsMobile();
+  const [showChangePwd, setShowChangePwd] = useState(false);
+  const [curPwd, setCurPwd] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const changePwdMut = trpc.auth.changePassword.useMutation({
+    onSuccess: () => { toast.success("Senha alterada!"); setShowChangePwd(false); setCurPwd(""); setNewPwd(""); },
+    onError: (e) => toast.error(e.message),
+  });
 
   useEffect(() => {
     if (isCollapsed) {
@@ -221,11 +242,18 @@ function DashboardLayoutContent({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem
+                  onClick={() => setShowChangePwd(true)}
+                  className="cursor-pointer"
+                >
+                  <Lock className="mr-2 h-4 w-4" />
+                  <span>Alterar Senha</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   onClick={logout}
                   className="cursor-pointer text-destructive focus:text-destructive"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sign out</span>
+                  <span>Sair</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -258,6 +286,36 @@ function DashboardLayoutContent({
         )}
         <main className="flex-1 p-4">{children}</main>
       </SidebarInset>
+
+      <AlertDialog open={showChangePwd} onOpenChange={setShowChangePwd}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Alterar Senha</AlertDialogTitle>
+            <AlertDialogDescription>
+              Digite sua senha atual e a nova senha.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex flex-col gap-3 py-2">
+            <div>
+              <Label>Senha atual</Label>
+              <Input type="password" value={curPwd} onChange={e => setCurPwd(e.target.value)} />
+            </div>
+            <div>
+              <Label>Nova senha</Label>
+              <Input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} minLength={4} />
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setCurPwd(""); setNewPwd(""); }}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => changePwdMut.mutate({ currentPassword: curPwd, newPassword: newPwd })}
+              disabled={!curPwd || newPwd.length < 4 || changePwdMut.isPending}
+            >
+              {changePwdMut.isPending ? "Alterando..." : "Alterar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

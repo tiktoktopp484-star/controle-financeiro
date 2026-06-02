@@ -336,3 +336,24 @@ export async function resetPassword(email: string): Promise<string> {
   writeUsers(fileUsers);
   return newPassword;
 }
+
+export async function changePassword(email: string, currentPassword: string, newPassword: string): Promise<boolean> {
+  const user = await authenticateUser(email, currentPassword);
+  if (!user) return false;
+  const hash = hashPassword(newPassword);
+  const db = await getDb();
+  if (db) {
+    try {
+      await db.update(users).set({ passwordHash: hash }).where(eq(users.email, email));
+      return true;
+    } catch {
+      console.warn("[AuthStore] DB update failed for changePassword");
+    }
+  }
+  const fileUsers = readUsers();
+  const idx = fileUsers.findIndex((u) => u.email === email);
+  if (idx === -1) return false;
+  fileUsers[idx].passwordHash = hash;
+  writeUsers(fileUsers);
+  return true;
+}
