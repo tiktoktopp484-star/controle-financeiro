@@ -11,20 +11,23 @@ async function main() {
   console.log("Checking for missing columns...");
   const connection = await mysql.createConnection(url);
 
+  const dbName = connection.config.database || new URL(url).pathname.slice(1);
+  console.log(`  Database: ${dbName}`);
+
   const [rows] = await connection.execute<any[]>(
     "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users'",
-    [connection.config.database]
+    [dbName]
   );
   const existing = new Set(rows.map((r: any) => r.COLUMN_NAME));
 
   const columns: { name: string; definition: string }[] = [
     { name: "passwordHash", definition: "ADD COLUMN `passwordHash` varchar(255)" },
-    { name: "premium", definition: "ADD `premium` boolean DEFAULT false NOT NULL" },
-    { name: "premiumUntil", definition: "ADD `premiumUntil` timestamp NULL" },
-    { name: "trialUsed", definition: "ADD `trialUsed` boolean DEFAULT false NOT NULL" },
-    { name: "paymentReceiptUrl", definition: "ADD `paymentReceiptUrl` text" },
-    { name: "asaasCustomerId", definition: "ADD `asaasCustomerId` varchar(64)" },
-    { name: "asaasSubscriptionId", definition: "ADD `asaasSubscriptionId` varchar(64)" },
+    { name: "premium", definition: "ADD COLUMN `premium` boolean DEFAULT false NOT NULL" },
+    { name: "premiumUntil", definition: "ADD COLUMN `premiumUntil` timestamp NULL" },
+    { name: "trialUsed", definition: "ADD COLUMN `trialUsed` boolean DEFAULT false NOT NULL" },
+    { name: "paymentReceiptUrl", definition: "ADD COLUMN `paymentReceiptUrl` text" },
+    { name: "asaasCustomerId", definition: "ADD COLUMN `asaasCustomerId` varchar(64)" },
+    { name: "asaasSubscriptionId", definition: "ADD COLUMN `asaasSubscriptionId` varchar(64)" },
   ];
 
   for (const col of columns) {
