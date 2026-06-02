@@ -33,7 +33,7 @@ export default function Login() {
     },
   });
 
-  const resetPwdMut = trpc.auth.resetPassword.useMutation({
+  const resetPwdMut = trpc.auth.forgotPassword.useMutation({
     onSuccess: (data) => {
       toast.success(data.message);
     },
