@@ -1,2 +1,2 @@
-ALTER TABLE `users` ADD `asaasCustomerId` varchar(64);
-ALTER TABLE `users` ADD `asaasSubscriptionId` varchar(64);
+ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `asaasCustomerId` varchar(64);
+ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `asaasSubscriptionId` varchar(64);
