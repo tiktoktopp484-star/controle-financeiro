@@ -85,9 +85,13 @@ function fromDbRow(row: typeof users.$inferSelect): StoredUser {
 export async function getUserByEmail(email: string): Promise<StoredUser | undefined> {
   const db = await getDb();
   if (db) {
-    const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    if (rows.length > 0 && rows[0].passwordHash) {
-      return fromDbRow(rows[0]);
+    try {
+      const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      if (rows.length > 0 && rows[0].passwordHash) {
+        return fromDbRow(rows[0]);
+      }
+    } catch {
+      console.warn("[AuthStore] DB query failed, falling back to file storage");
     }
   }
   return readUsers().find((u) => u.email === email);
@@ -152,12 +156,16 @@ export async function registerUser(name: string, email: string, password: string
 export async function authenticateUser(email: string, password: string): Promise<StoredUser | null> {
   const db = await getDb();
   if (db) {
-    const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    if (rows.length > 0 && rows[0].passwordHash) {
-      if (!verifyPassword(password, rows[0].passwordHash)) return null;
-      const now = new Date();
-      await db.update(users).set({ lastSignedIn: now }).where(eq(users.id, rows[0].id));
-      return fromDbRow({ ...rows[0], lastSignedIn: now });
+    try {
+      const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      if (rows.length > 0 && rows[0].passwordHash) {
+        if (!verifyPassword(password, rows[0].passwordHash)) return null;
+        const now = new Date();
+        await db.update(users).set({ lastSignedIn: now }).where(eq(users.id, rows[0].id));
+        return fromDbRow({ ...rows[0], lastSignedIn: now });
+      }
+    } catch {
+      console.warn("[AuthStore] DB query failed, falling back to file storage");
     }
   }
 

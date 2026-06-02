@@ -11,7 +11,32 @@ async function main() {
   console.log("Checking for missing columns...");
   const connection = await mysql.createConnection(url);
 
-  const dbName = connection.config.database || new URL(url).pathname.slice(1);
+  let dbName = (connection.config as any)?.database;
+  if (!dbName) {
+    try { dbName = new URL(url).pathname.split("/").filter(Boolean)[0]; } catch {}
+  }
+  if (!dbName) {
+    console.warn("Could not detect database name, querying information_schema without filter");
+    const [allRows] = await connection.execute<any[]>(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME = 'users'"
+    );
+    const existing = new Set(allRows.map((r: any) => r.COLUMN_NAME));
+    for (const col of columns) {
+      if (!existing.has(col.name)) {
+        try {
+          await connection.execute(`ALTER TABLE users ${col.definition}`);
+          console.log(`  ✓ Added column: ${col.name}`);
+        } catch (err: any) {
+          console.warn(`  ✗ Failed to add ${col.name}: ${err.message}`);
+        }
+      } else {
+        console.log(`  - Column already exists: ${col.name}`);
+      }
+    }
+    await connection.end();
+    console.log("Column check complete");
+    return;
+  }
   console.log(`  Database: ${dbName}`);
 
   const [rows] = await connection.execute<any[]>(
