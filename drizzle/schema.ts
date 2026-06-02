@@ -53,6 +53,9 @@ export const expenses = mysqlTable("expenses", {
   value: decimal("value", { precision: 15, scale: 2 }).notNull(),
   category: varchar("category", { length: 100 }).default("Outros").notNull(),
   date: date("date").notNull(),
+  recurring: boolean("recurring").default(false).notNull(),
+  recurringInterval: mysqlEnum("recurringInterval", ["weekly", "monthly", "yearly"]),
+  nextRecurringDate: date("nextRecurringDate"),
   customCategory: varchar("customCategory", { length: 100 }),
   receiptUrl: text("receiptUrl"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -68,6 +71,9 @@ export const incomes = mysqlTable("incomes", {
   description: varchar("description", { length: 255 }).notNull(),
   value: decimal("value", { precision: 15, scale: 2 }).notNull(),
   date: date("date").notNull(),
+  recurring: boolean("recurring").default(false).notNull(),
+  recurringInterval: mysqlEnum("recurringInterval", ["weekly", "monthly", "yearly"]),
+  nextRecurringDate: date("nextRecurringDate"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

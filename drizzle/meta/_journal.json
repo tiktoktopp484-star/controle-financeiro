@@ -71,6 +71,13 @@
       "when": 1740000000002,
       "tag": "0009_fix_missing_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1730000000000,
+      "tag": "0010_recurring",
+      "breakpoints": true
     }
   ]
 }

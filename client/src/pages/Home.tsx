@@ -14,6 +14,7 @@ import Graficos from "./Graficos";
 import Orcamentos from "./Orcamentos";
 import PremiumPlans from "./PremiumPlans";
 import AdminPanel from "./AdminPanel";
+import Profile from "./Profile";
 
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -236,6 +237,108 @@ function AlertasBanner() {
   );
 }
 
+function MonthlyStatement() {
+  const { data: salaries = [] } = trpc.salaries.list.useQuery();
+  const { data: expenses = [] } = trpc.expenses.list.useQuery();
+  const { data: incomes = [] } = trpc.incomes.list.useQuery();
+  const { data: debts = [] } = trpc.debts.list.useQuery();
+  const [show, setShow] = useState(false);
+
+  function fmt(v: number) {
+    return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const mExpenses = expenses.filter(e => e.date?.startsWith(currentMonth));
+  const mIncomes = incomes.filter(i => i.date?.startsWith(currentMonth));
+  const mSalary = salaries.filter(s => s.date?.startsWith(currentMonth));
+
+  const totalInc = mSalary.reduce((s, i) => s + i.value, 0) + mIncomes.reduce((s, i) => s + i.value, 0);
+  const totalExp = mExpenses.reduce((s, e) => s + e.value, 0);
+  const balance = totalInc - totalExp;
+
+  if (!show) {
+    return (
+      <button onClick={() => setShow(true)}
+        className="w-full py-3 rounded-xl text-sm font-semibold transition-all active:scale-95"
+        style={{ background: "linear-gradient(135deg, #1A2744, #243460)", color: "#E2C47A" }}>
+        📋 Extrato Mensal
+      </button>
+    );
+  }
+
+  return (
+    <div className="section-card">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm font-semibold" style={{ color: "#1A2744" }}>📋 Extrato do Mês</p>
+        <button onClick={() => setShow(false)} className="text-xs" style={{ color: "#C0392B" }}>✕ Fechar</button>
+      </div>
+
+      <div className="space-y-2 text-xs" style={{ color: "#1A2744" }}>
+        <div className="flex justify-between"><span>Salários</span><span style={{ color: "#2D7A4F" }}>{fmt(mSalary.reduce((s, i) => s + i.value, 0))}</span></div>
+        <div className="flex justify-between"><span>Receitas extras</span><span style={{ color: "#2D7A4F" }}>{fmt(mIncomes.reduce((s, i) => s + i.value, 0))}</span></div>
+        <div className="flex justify-between"><span>Total de despesas</span><span style={{ color: "#C0392B" }}>{fmt(totalExp)}</span></div>
+        <div className="border-t pt-2 flex justify-between font-bold">
+          <span>Saldo do mês</span>
+          <span style={{ color: balance >= 0 ? "#2D7A4F" : "#C0392B" }}>{fmt(balance)}</span>
+        </div>
+      </div>
+
+      {mExpenses.length > 0 && (
+        <div className="mt-3">
+          <p className="text-xs font-semibold mb-1" style={{ color: "#6B6350" }}>Principais despesas:</p>
+          {mExpenses.sort((a, b) => b.value - a.value).slice(0, 5).map(e => (
+            <div key={e.id} className="flex justify-between py-0.5">
+              <span className="text-xs" style={{ color: "#1A2744" }}>{e.description}</span>
+              <span className="text-xs" style={{ color: "#C0392B" }}>{fmt(e.value)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BudgetAlertBanner() {
+  const { data: expenses = [] } = trpc.expenses.list.useQuery();
+  const { data: userBudgets = [] } = trpc.budgets.list.useQuery(undefined, { enabled: false });
+  // We need budgets to be passed or fetched. Let's check if budgets query exists
+  const currentMonth = new Date().toISOString().slice(0, 7);
+
+  const monthlyExpenses = expenses.filter(e => e.date?.startsWith(currentMonth));
+  const alerts: { category: string; spent: number; limit: number }[] = [];
+
+  for (const b of userBudgets) {
+    if (!b.month?.startsWith(currentMonth)) continue;
+    const spent = monthlyExpenses
+      .filter(e => e.category === b.category)
+      .reduce((s, e) => s + e.value, 0);
+    if (spent > parseFloat(String(b.spendingLimit))) {
+      alerts.push({ category: b.category, spent, limit: parseFloat(String(b.spendingLimit)) });
+    }
+  }
+
+  if (alerts.length === 0) return null;
+
+  function fmt(v: number) {
+    return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  return (
+    <div className="rounded-xl px-4 py-3 mb-4" style={{ background: "#FFF3CD", border: "1px solid #FFEAA7" }}>
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-lg">⚠️</span>
+        <p className="text-sm font-semibold" style={{ color: "#856404" }}>Orçamento excedido!</p>
+      </div>
+      {alerts.map(a => (
+        <div key={a.category} className="text-xs ml-7" style={{ color: "#856404" }}>
+          {a.category}: {fmt(a.spent)} de {fmt(a.limit)} permitido
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function downloadCSV(filename: string, rows: string[][]) {
   const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
   const bom = "\uFEFF";
@@ -248,6 +351,39 @@ function downloadCSV(filename: string, rows: string[][]) {
   URL.revokeObjectURL(url);
 }
 
+function downloadPDF(title: string, columns: string[], rows: string[][]) {
+  const tableRows = rows.map(r =>
+    `<tr>${r.map(c => `<td style="padding:8px 12px;border:1px solid #ddd;font-size:13px">${c}</td>`).join('')}</tr>`
+  ).join('');
+
+  const html = `
+    <!DOCTYPE html>
+    <html><head><meta charset="utf-8">
+    <title>${title}</title>
+    <style>
+      @page { margin: 20mm; }
+      body { font-family: Arial, sans-serif; padding: 0; margin: 0; }
+      h1 { color: #1A2744; font-size: 20px; margin-bottom: 20px; }
+      table { border-collapse: collapse; width: 100%; }
+      th { background: #1A2744; color: #E2C47A; padding: 10px 12px; text-align: left; font-size: 12px; }
+      td { padding: 8px 12px; border-bottom: 1px solid #eee; font-size: 12px; }
+      .footer { margin-top: 20px; text-align: center; color: #999; font-size: 10px; }
+    </style></head><body>
+    <h1>${title}</h1>
+    <table><thead><tr>${columns.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+    <tbody>${tableRows}</tbody></table>
+    <div class="footer">Controle Financeiro - ${new Date().toLocaleDateString('pt-BR')}</div>
+    <script>window.print();<\/script>
+    </body></html>
+  `;
+
+  const win = window.open('', '_blank');
+  if (win) {
+    win.document.write(html);
+    win.document.close();
+  }
+}
+
 export default function Home() {
   const { user, loading, logout, refresh } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -256,6 +392,7 @@ export default function Home() {
   const [showPremium, setShowPremium] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showChangePwd, setShowChangePwd] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [curPwd, setCurPwd] = useState("");
   const [newPwd, setNewPwd] = useState("");
   const [showCurPwd, setShowCurPwd] = useState(false);
@@ -350,7 +487,7 @@ export default function Home() {
           </p>
         </div>
         <div className="flex items-center gap-1.5">
-          {user?.premium && toggleTheme && (
+          {toggleTheme && (
             <button
               onClick={toggleTheme}
               className="w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-all active:scale-90"
@@ -363,6 +500,21 @@ export default function Home() {
               {theme === "dark" ? "☀️" : "🌙"}
             </button>
           )}
+          <button
+            onClick={async () => {
+              const { requestPushPermission } = await import("@/lib/notifications");
+              const ok = await requestPushPermission();
+              toast.success(ok ? "Notificações ativadas!" : "Notificações não disponíveis");
+            }}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-all active:scale-90"
+            style={{
+              background: "rgba(26,39,68,0.08)",
+              border: "1px solid rgba(26,39,68,0.12)",
+            }}
+            title="Ativar notificações"
+          >
+            🔔
+          </button>
           {user?.premium ? (
             <span
               className="px-2 py-1 rounded-lg text-xs font-bold"
@@ -395,6 +547,17 @@ export default function Home() {
               Admin
             </button>
           )}
+          <button
+            onClick={() => setShowProfile(true)}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95"
+            style={{
+              background: "rgba(26,39,68,0.08)",
+              color: "#3D4F7C",
+              border: "1px solid rgba(26,39,68,0.12)",
+            }}
+          >
+            Perfil
+          </button>
           <button
             onClick={() => setShowChangePwd(true)}
             className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95"
@@ -488,6 +651,7 @@ export default function Home() {
 
         {/* Alertas de Vencimento */}
         {user?.premium && <AlertasBanner />}
+        {user?.premium && <BudgetAlertBanner />}
 
         {/* Tab bar */}
         <div className="tab-bar mb-4">
@@ -527,6 +691,34 @@ export default function Home() {
             </div>
           </div>
         )}
+
+        {/* PDF Export Panel */}
+        {user?.premium && (
+          <div className="section-card mt-4">
+            <p className="text-sm font-semibold mb-3" style={{ color: "#1A2744" }}>
+              Exportar Dados (PDF)
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => {
+                const cols = ["Descrição", "Valor", "Categoria", "Data"];
+                const rows = expenses.map(e => [e.description, fmtCSV(e.value), e.category ?? "Outros", e.date ?? ""]);
+                downloadPDF("Despesas", cols, rows);
+              }} className="px-4 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95" style={{ background: "#C0392B", color: "#fff" }}>📄 Despesas</button>
+              <button onClick={() => {
+                const cols = ["Descrição", "Valor", "Data"];
+                const rows = incomes.map(i => [i.description, fmtCSV(i.value), i.date ?? ""]);
+                downloadPDF("Receitas", cols, rows);
+              }} className="px-4 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95" style={{ background: "#2D7A4F", color: "#fff" }}>📄 Receitas</button>
+              <button onClick={() => {
+                const cols = ["Descrição", "Valor", "Tipo", "Vencimento"];
+                const rows = debts.filter(d => !d.paid).map(d => [d.description, fmtCSV(d.value), d.type, d.dueDate]);
+                downloadPDF("Dívidas Pendentes", cols, rows);
+              }} className="px-4 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95" style={{ background: "#D4680A", color: "#fff" }}>📄 Dívidas</button>
+            </div>
+          </div>
+        )}
+
+        {user?.premium && <MonthlyStatement />}
       </div>
 
       {/* Premium Plans Modal */}
@@ -534,6 +726,9 @@ export default function Home() {
 
       {/* Admin Panel */}
       {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} />}
+
+      {/* Profile Modal */}
+      {showProfile && <Profile onClose={() => setShowProfile(false)} />}
 
       {/* Change Password Dialog */}
       {showChangePwd && (

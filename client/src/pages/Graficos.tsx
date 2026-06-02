@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from "recharts";
@@ -26,6 +27,12 @@ export default function Graficos({ onOpenPremium }: Props) {
   const { data: expenses = [] } = trpc.expenses.list.useQuery();
   const { data: salaries = [] } = trpc.salaries.list.useQuery();
   const { data: incomes = [] } = trpc.incomes.list.useQuery();
+  const [drillCategory, setDrillCategory] = useState<string | null>(null);
+
+  const filteredExpenses = useMemo(() => {
+    if (!drillCategory) return [];
+    return expenses.filter(e => (e.category ?? "Outros") === drillCategory);
+  }, [drillCategory, expenses]);
 
   if (!user?.premium) {
     return (
@@ -116,7 +123,7 @@ export default function Graficos({ onOpenPremium }: Props) {
         ) : (
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
-              <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+              <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} onClick={(entry) => setDrillCategory(entry.name)} style={{ cursor: "pointer" }}>
                 {pieData.map((entry) => (
                   <Cell key={entry.name} fill={CATEGORY_COLORS[entry.name] || "#7F8C8D"} />
                 ))}
@@ -126,6 +133,35 @@ export default function Graficos({ onOpenPremium }: Props) {
           </ResponsiveContainer>
         )}
       </div>
+
+      {drillCategory && (
+        <button onClick={() => setDrillCategory(null)}
+          className="text-sm font-semibold mb-2" style={{ color: "#C9A84C" }}>
+          ← Voltar
+        </button>
+      )}
+
+      {drillCategory && (
+        <div className="section-card mt-3">
+          <p className="text-sm font-semibold mb-2" style={{ color: "#1A2744" }}>
+            Despesas em {drillCategory}
+          </p>
+          {filteredExpenses.length === 0 ? (
+            <p className="text-xs" style={{ color: "#A09880" }}>Nenhuma despesa nesta categoria</p>
+          ) : (
+            <div className="flex flex-col gap-1">
+              {filteredExpenses.map(e => (
+                <div key={e.id} className="flex justify-between items-center py-1">
+                  <span className="text-xs" style={{ color: "#1A2744" }}>{e.description}</span>
+                  <span className="text-xs font-bold" style={{ color: "#C0392B" }}>
+                    {e.value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="section-card">
         <p className="text-sm font-semibold mb-3" style={{ color: "#1A2744" }}>

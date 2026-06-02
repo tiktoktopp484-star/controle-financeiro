@@ -32,6 +32,7 @@ import {
   toggleDebtPaid,
   toggleGoalCompleted,
   updateGoal,
+  updateExpenseReceipt,
   activatePremium as activatePremiumDb,
   deactivatePremium as deactivatePremiumDb,
   getCustomCategories,
@@ -212,9 +213,25 @@ export const appRouter = router({
         newPassword: z.string().min(4, "Nova senha deve ter no mínimo 4 caracteres"),
       }))
       .mutation(async ({ ctx, input }) => {
-        const ok = await changePassword(ctx.user.email, input.currentPassword, input.newPassword);
+        const email = ctx.user.email;
+        if (!email) throw new TRPCError({ code: "BAD_REQUEST", message: "Email não encontrado" });
+        const ok = await changePassword(email, input.currentPassword, input.newPassword);
         if (!ok) throw new TRPCError({ code: "UNAUTHORIZED", message: "Senha atual incorreta" });
         return { message: "Senha alterada com sucesso" };
+      }),
+
+    updateProfile: protectedProcedure
+      .input(z.object({
+        name: z.string().min(1, "Nome é obrigatório"),
+        email: z.string().email("Email inválido").optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const email = ctx.user.email;
+        if (!email) throw new TRPCError({ code: "BAD_REQUEST", message: "Email não encontrado" });
+        const { updateUserProfile } = await import("./authStore");
+        const ok = await updateUserProfile(email, input.name, input.email);
+        if (!ok) throw new TRPCError({ code: "NOT_FOUND", message: "Usuário não encontrado" });
+        return { success: true };
       }),
   }),
 
@@ -268,11 +285,35 @@ export const appRouter = router({
           value: z.number().positive(),
           category: z.string(),
           date: z.string(),
+          recurring: z.boolean().optional(),
+          recurringInterval: z.enum(["weekly", "monthly", "yearly"]).optional(),
+          nextRecurringDate: z.string().optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
-        await addExpense(ctx.user.id, input.description, String(input.value), input.category, input.date);
-        return { success: true };
+        const result = await addExpense(
+          ctx.user.id,
+          input.description,
+          String(input.value),
+          input.category,
+          input.date,
+          input.recurring,
+          input.recurringInterval,
+          input.nextRecurringDate
+        );
+        return { success: true, id: result.id };
+      }),
+
+    uploadReceipt: protectedProcedure
+      .input(z.object({
+        expenseId: z.number(),
+        imageBase64: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { saveBase64Image } = await import("./localUpload");
+        const url = await saveBase64Image(input.imageBase64);
+        await updateExpenseReceipt(input.expenseId, ctx.user.id, url);
+        return { success: true, url };
       }),
 
     delete: protectedProcedure
@@ -300,10 +341,21 @@ export const appRouter = router({
           description: z.string().min(1),
           value: z.number().positive(),
           date: z.string(),
+          recurring: z.boolean().optional(),
+          recurringInterval: z.enum(["weekly", "monthly", "yearly"]).optional(),
+          nextRecurringDate: z.string().optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
-        await addIncome(ctx.user.id, input.description, String(input.value), input.date);
+        await addIncome(
+          ctx.user.id,
+          input.description,
+          String(input.value),
+          input.date,
+          input.recurring,
+          input.recurringInterval,
+          input.nextRecurringDate
+        );
         return { success: true };
       }),
 

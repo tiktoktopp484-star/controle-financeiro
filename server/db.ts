@@ -147,11 +147,23 @@ export async function addExpense(
   description: string,
   value: string,
   category: string,
-  date: string
+  date: string,
+  recurring?: boolean,
+  recurringInterval?: string | null,
+  nextRecurringDate?: string | null
 ) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
-  const result = await db.insert(expenses).values({ userId, description, value, category, date: new Date(date) });
+  const result = await db.insert(expenses).values({
+    userId,
+    description,
+    value,
+    category,
+    date: new Date(date),
+    recurring: recurring ?? false,
+    recurringInterval: (recurringInterval ?? null) as typeof expenses.$inferInsert.recurringInterval,
+    nextRecurringDate: nextRecurringDate ? new Date(nextRecurringDate) : null,
+  });
   return { id: Number(result[0].insertId) };
 }
 
@@ -174,10 +186,26 @@ export async function getIncomesByUser(userId: number) {
   return db.select().from(incomes).where(eq(incomes.userId, userId));
 }
 
-export async function addIncome(userId: number, description: string, value: string, date: string) {
+export async function addIncome(
+  userId: number,
+  description: string,
+  value: string,
+  date: string,
+  recurring?: boolean,
+  recurringInterval?: string | null,
+  nextRecurringDate?: string | null
+) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
-  await db.insert(incomes).values({ userId, description, value, date: new Date(date) });
+  await db.insert(incomes).values({
+    userId,
+    description,
+    value,
+    date: new Date(date),
+    recurring: recurring ?? false,
+    recurringInterval: (recurringInterval ?? null) as typeof incomes.$inferInsert.recurringInterval,
+    nextRecurringDate: nextRecurringDate ? new Date(nextRecurringDate) : null,
+  });
 }
 
 export async function deleteIncome(id: number, userId: number) {

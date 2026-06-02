@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 const FLAGS = [
   { key: "Visa", color: "#1A1F71" },
@@ -170,7 +171,7 @@ export default function Cartao() {
         </p>
 
         {isLoading ? (
-          <div className="flex justify-center py-8"><div className="spinner" /></div>
+          <LoadingSpinner />
         ) : cards.length === 0 ? (
           <div className="empty-state">Nenhuma compra registrada</div>
         ) : (

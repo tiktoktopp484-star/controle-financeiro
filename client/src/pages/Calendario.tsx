@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 const MONTHS = [
   "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
@@ -22,7 +23,7 @@ export default function Calendario() {
   const [month, setMonth] = useState(today.getMonth());
   const [selDay, setSelDay] = useState<number | null>(null);
 
-  const { data: expenses = [] } = trpc.expenses.list.useQuery();
+  const { data: expenses = [], isLoading } = trpc.expenses.list.useQuery();
   const { data: incomes = [] } = trpc.incomes.list.useQuery();
   const { data: debts = [] } = trpc.debts.list.useQuery();
   const { data: cards = [] } = trpc.cards.list.useQuery();
@@ -70,6 +71,8 @@ export default function Calendario() {
         ...selItems.card.map((c) => ({ ...c, _type: "card" as const })),
       ]
     : [];
+
+  if (isLoading) return <LoadingSpinner />;
 
   return (
     <div>

@@ -337,6 +337,30 @@ export async function resetPassword(email: string): Promise<string> {
   return newPassword;
 }
 
+export async function updateUserProfile(email: string, name: string, newEmail?: string): Promise<boolean> {
+  const db = await getDb();
+  if (db) {
+    try {
+      await db
+        .update(users)
+        .set({ name, email: newEmail || email, updatedAt: new Date() })
+        .where(eq(users.email, email));
+      return true;
+    } catch {
+      console.warn("[AuthStore] DB update failed for updateUserProfile");
+    }
+  }
+
+  const fileUsers = readUsers();
+  const idx = fileUsers.findIndex((u) => u.email === email);
+  if (idx === -1) return false;
+  fileUsers[idx].name = name;
+  if (newEmail) fileUsers[idx].email = newEmail;
+  fileUsers[idx].updatedAt = new Date().toISOString();
+  writeUsers(fileUsers);
+  return true;
+}
+
 export async function changePassword(email: string, currentPassword: string, newPassword: string): Promise<boolean> {
   const user = await authenticateUser(email, currentPassword);
   if (!user) return false;

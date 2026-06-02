@@ -2,6 +2,7 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 const goalCategoryIcons: Record<string, string> = {
   Viagem: "✈️",
@@ -143,7 +144,7 @@ export default function Metas() {
 
       {/* Goals list */}
       {isLoading ? (
-        <p style={{ color: "#A09880", textAlign: "center" }}>Carregando...</p>
+        <LoadingSpinner />
       ) : goals.length === 0 ? (
         <p style={{ color: "#A09880", textAlign: "center" }}>Nenhuma meta criada</p>
       ) : (

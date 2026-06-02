@@ -10,12 +10,18 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [saveBiometric, setSaveBiometric] = useState(false);
 
   const utils = trpc.useUtils();
 
   const loginMut = trpc.auth.login.useMutation({
     onSuccess: (data) => {
       utils.auth.me.setData(undefined, data as any);
+      if (saveBiometric) {
+        localStorage.setItem("biometric_user", JSON.stringify({ email, password }));
+      } else {
+        localStorage.removeItem("biometric_user");
+      }
       toast.success("Login realizado!");
     },
     onError: (err) => {
@@ -253,6 +259,18 @@ export default function Login() {
             </div>
 
             {mode === "login" && (
+              <label className="flex items-center gap-2 text-xs" style={{ color: "#6B6350" }}>
+                <input
+                  type="checkbox"
+                  checked={saveBiometric}
+                  onChange={(e) => setSaveBiometric(e.target.checked)}
+                  className="rounded"
+                />
+                Lembrar para login biométrico
+              </label>
+            )}
+
+            {mode === "login" && (
               <button
                 type="button"
                 onClick={handleForgotPassword}
@@ -261,6 +279,35 @@ export default function Login() {
                 style={{ color: "#C9A84C" }}
               >
                 {resetPwdMut.isPending ? "Enviando..." : "Esqueceu a senha?"}
+              </button>
+            )}
+
+            {mode === "login" && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const { checkBiometricAvailability, authenticateWithBiometric } = await import("@/lib/biometric");
+                  const available = await checkBiometricAvailability();
+                  if (!available) { toast.error("Biometria não disponível neste dispositivo"); return; }
+                  const ok = await authenticateWithBiometric();
+                  if (ok) {
+                    const storedUser = localStorage.getItem("biometric_user");
+                    if (storedUser) {
+                      try {
+                        const { email, password } = JSON.parse(storedUser);
+                        loginMut.mutate({ email, password });
+                      } catch { toast.error("Erro ao recuperar credenciais"); }
+                    }
+                  }
+                }}
+                className="w-full py-3 px-6 rounded-xl font-semibold text-sm transition-all duration-200 active:scale-95 mt-2"
+                style={{
+                  background: "#F5F0E8",
+                  color: "#1A2744",
+                  border: "1px solid #E8E0D0",
+                }}
+              >
+                🔒 Entrar com Biometria
               </button>
             )}
 

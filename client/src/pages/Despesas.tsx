@@ -26,6 +26,9 @@ export default function Despesas() {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringInterval, setRecurringInterval] = useState<"weekly" | "monthly" | "yearly">("monthly");
+  const [searchTerm, setSearchTerm] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const utils = trpc.useUtils();
@@ -48,9 +51,17 @@ export default function Despesas() {
   const [showNewCat, setShowNewCat] = useState(false);
 
   const addMut = trpc.expenses.add.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       utils.expenses.list.invalidate();
-      setDesc(""); setVal(""); setReceiptFile(null); setReceiptPreview(null);
+      if (receiptFile) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const base64 = e.target?.result as string;
+          uploadReceiptMut.mutate({ expenseId: data.id, imageBase64: base64 });
+        };
+        reader.readAsDataURL(receiptFile);
+      }
+      setDesc(""); setVal(""); setReceiptFile(null); setReceiptPreview(null); setIsRecurring(false); setRecurringInterval("monthly");
       toast.success("Despesa adicionada!");
     },
     onError: () => toast.error("Erro ao adicionar despesa"),
@@ -65,6 +76,10 @@ export default function Despesas() {
     },
     onError: (_e, _v, ctx) => { utils.expenses.list.setData(undefined, ctx?.prev); toast.error("Erro ao excluir"); },
     onSettled: () => utils.expenses.list.invalidate(),
+  });
+
+  const uploadReceiptMut = trpc.expenses.uploadReceipt.useMutation({
+    onError: () => toast.error("Erro ao enviar comprovante"),
   });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -89,7 +104,15 @@ export default function Despesas() {
     if (!desc.trim() || !v || v <= 0) { toast.error("Preencha todos os campos"); return; }
 
     addMut.mutate(
-      { description: desc.trim(), value: v, category: selCat, date },
+      {
+        description: desc.trim(),
+        value: v,
+        category: selCat,
+        date,
+        recurring: isRecurring,
+        recurringInterval: isRecurring ? recurringInterval : undefined,
+        nextRecurringDate: isRecurring ? date : undefined,
+      },
     );
   };
 
@@ -180,6 +203,30 @@ export default function Despesas() {
           />
         </div>
 
+        {/* Recurring toggle */}
+        <div className="flex items-center gap-2 mb-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isRecurring}
+              onChange={(e) => setIsRecurring(e.target.checked)}
+              className="rounded"
+            />
+            <span className="text-xs font-medium" style={{ color: "#6B6350" }}>Despesa recorrente</span>
+          </label>
+          {isRecurring && (
+            <select
+              value={recurringInterval}
+              onChange={(e) => setRecurringInterval(e.target.value as "weekly" | "monthly" | "yearly")}
+              className="fin-input text-xs flex-1"
+            >
+              <option value="monthly">Mensal</option>
+              <option value="weekly">Semanal</option>
+              <option value="yearly">Anual</option>
+            </select>
+          )}
+        </div>
+
         {/* Receipt upload */}
         {user?.premium && (
           <div className="mb-2">
@@ -232,6 +279,15 @@ export default function Despesas() {
 
       {/* List */}
       <div className="section-card">
+        {/* Search */}
+        <div className="mb-3">
+          <input
+            className="fin-input w-full text-sm"
+            placeholder="🔍 Buscar despesas..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
         <p className="text-sm font-semibold mb-3" style={{ color: "#1A2744" }}>
           Despesas Registradas
           {expenses.length > 0 && (
@@ -247,7 +303,7 @@ export default function Despesas() {
           <div className="empty-state">Nenhuma despesa registrada</div>
         ) : (
           <div className="flex flex-col gap-2">
-            {expenses.map((e) => (
+            {expenses.filter(e => e.description.toLowerCase().includes(searchTerm.toLowerCase())).map((e) => (
               <div key={e.id} className="item-row">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <span
@@ -258,6 +314,7 @@ export default function Despesas() {
                     <p className="text-sm font-semibold truncate" style={{ color: "#1A2744" }}>{e.description}</p>
                     <p className="text-xs" style={{ color: "#A09880" }}>
                       {e.category} · {e.date}
+                      {e.recurring && <span className="ml-1 text-xs" style={{ color: "#8E44AD" }}>🔄</span>}
                       {e.receiptUrl && <span className="ml-2 cursor-pointer" style={{ color: "#C9A84C" }} onClick={() => setSelectedReceipt(e.receiptUrl)}>📎</span>}
                     </p>
                   </div>

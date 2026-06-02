@@ -16,7 +16,7 @@ export async function sendResetLink(email: string, newPassword: string): Promise
   if (!client) return false;
   try {
     const { error } = await client.emails.send({
-      from: "Controle Financeiro <onboarding@resend.dev>",
+      from: process.env.FROM_EMAIL || "Controle Financeiro <onboarding@resend.dev>",
       to: email,
       subject: "Sua nova senha - Controle Financeiro",
       html: `

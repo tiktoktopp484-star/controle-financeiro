@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -22,7 +23,7 @@ export default function Orcamentos({ onOpenPremium }: Props) {
   const [limit, setLimit] = useState("");
 
   const { data: expenses = [] } = trpc.expenses.list.useQuery();
-  const { data: budgets = [], refetch } = trpc.budgets.list.useQuery(undefined, { enabled: !!user?.premium });
+  const { data: budgets = [], refetch, isLoading } = trpc.budgets.list.useQuery(undefined, { enabled: !!user?.premium });
 
   const upsertMut = trpc.budgets.upsert.useMutation({
     onSuccess: () => {
@@ -39,6 +40,8 @@ export default function Orcamentos({ onOpenPremium }: Props) {
       toast.success("Orçamento removido");
     },
   });
+
+  if (isLoading) return <LoadingSpinner />;
 
   if (!user?.premium) {
     return (

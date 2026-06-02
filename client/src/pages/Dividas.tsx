@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 const DEBT_TYPES = [
   { key: "Empréstimo", emoji: "🏦" },
@@ -136,7 +137,7 @@ export default function Dividas() {
         </p>
 
         {isLoading ? (
-          <div className="flex justify-center py-8"><div className="spinner" /></div>
+          <LoadingSpinner />
         ) : debts.length === 0 ? (
           <div className="empty-state">Nenhuma dívida registrada</div>
         ) : (
