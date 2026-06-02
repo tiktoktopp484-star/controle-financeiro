@@ -112,19 +112,23 @@ export async function registerUser(name: string, email: string, password: string
   const db = await getDb();
 
   if (db) {
-    const isFirst = (await db.select().from(users)).length === 0;
-    const result = await db.insert(users).values({
-      openId: email,
-      name,
-      email,
-      passwordHash: hash,
-      loginMethod: "local",
-      role: isFirst ? "admin" : "user",
-      lastSignedIn: now,
-    });
-    const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    if (rows.length > 0) {
-      return fromDbRow(rows[0]);
+    try {
+      const isFirst = (await db.select().from(users)).length === 0;
+      await db.insert(users).values({
+        openId: email,
+        name,
+        email,
+        passwordHash: hash,
+        loginMethod: "local",
+        role: isFirst ? "admin" : "user",
+        lastSignedIn: now,
+      });
+      const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      if (rows.length > 0) {
+        return fromDbRow(rows[0]);
+      }
+    } catch {
+      console.warn("[AuthStore] DB insert failed, falling back to file storage");
     }
   }
 
@@ -191,16 +195,20 @@ export async function updateLocalUserPremium(
 ): Promise<StoredUser | null> {
   const db = await getDb();
   if (db) {
-    await db
-      .update(users)
-      .set({
-        premium,
-        premiumUntil: premiumUntil ? new Date(premiumUntil) : null,
-      })
-      .where(eq(users.email, email));
-    const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    if (rows.length > 0) return fromDbRow(rows[0]);
-    return null;
+    try {
+      await db
+        .update(users)
+        .set({
+          premium,
+          premiumUntil: premiumUntil ? new Date(premiumUntil) : null,
+        })
+        .where(eq(users.email, email));
+      const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      if (rows.length > 0) return fromDbRow(rows[0]);
+      return null;
+    } catch {
+      console.warn("[AuthStore] DB query failed, falling back to file storage");
+    }
   }
 
   const fileUsers = readUsers();
@@ -215,11 +223,15 @@ export async function updateLocalUserPremium(
 export async function markTrialUsed(email: string): Promise<void> {
   const db = await getDb();
   if (db) {
-    await db
-      .update(users)
-      .set({ trialUsed: true })
-      .where(eq(users.email, email));
-    return;
+    try {
+      await db
+        .update(users)
+        .set({ trialUsed: true })
+        .where(eq(users.email, email));
+      return;
+    } catch {
+      console.warn("[AuthStore] DB query failed, falling back to file storage");
+    }
   }
 
   const fileUsers = readUsers();
@@ -232,13 +244,17 @@ export async function markTrialUsed(email: string): Promise<void> {
 export async function updateUserPaymentReceipt(email: string, paymentReceiptUrl: string): Promise<StoredUser | null> {
   const db = await getDb();
   if (db) {
-    await db
-      .update(users)
-      .set({ paymentReceiptUrl })
-      .where(eq(users.email, email));
-    const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    if (rows.length > 0) return fromDbRow(rows[0]);
-    return null;
+    try {
+      await db
+        .update(users)
+        .set({ paymentReceiptUrl })
+        .where(eq(users.email, email));
+      const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      if (rows.length > 0) return fromDbRow(rows[0]);
+      return null;
+    } catch {
+      console.warn("[AuthStore] DB query failed, falling back to file storage");
+    }
   }
 
   const fileUsers = readUsers();
@@ -252,9 +268,13 @@ export async function updateUserPaymentReceipt(email: string, paymentReceiptUrl:
 export async function updateLocalUserRole(email: string, role: "user" | "admin"): Promise<StoredUser | null> {
   const db = await getDb();
   if (db) {
-    await db.update(users).set({ role }).where(eq(users.email, email));
-    const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    if (rows.length > 0) return fromDbRow(rows[0]);
+    try {
+      await db.update(users).set({ role }).where(eq(users.email, email));
+      const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      if (rows.length > 0) return fromDbRow(rows[0]);
+    } catch {
+      console.warn("[AuthStore] DB query failed, falling back to file storage");
+    }
   }
 
   const fileUsers = readUsers();
@@ -268,8 +288,12 @@ export async function updateLocalUserRole(email: string, role: "user" | "admin")
 export async function deleteUserByEmail(email: string): Promise<boolean> {
   const db = await getDb();
   if (db) {
-    const result = await db.delete(users).where(eq(users.email, email));
-    if (result) return true;
+    try {
+      const result = await db.delete(users).where(eq(users.email, email));
+      if (result) return true;
+    } catch {
+      console.warn("[AuthStore] DB query failed, falling back to file storage");
+    }
   }
 
   const fileUsers = readUsers();

@@ -47,14 +47,19 @@ export async function getDb() {
 export async function disableExpiredPremium(userId: number): Promise<boolean> {
   const db = await getDb();
   if (!db) return false;
-  const result = await db.select({ premiumUntil: users.premiumUntil }).from(users).where(eq(users.id, userId)).limit(1);
-  if (result.length === 0) return false;
-  const until = result[0].premiumUntil;
-  if (until && new Date(until) <= new Date()) {
-    await db.update(users).set({ premium: false, premiumUntil: null }).where(eq(users.id, userId));
-    return true;
+  try {
+    const result = await db.select({ premiumUntil: users.premiumUntil }).from(users).where(eq(users.id, userId)).limit(1);
+    if (result.length === 0) return false;
+    const until = result[0].premiumUntil;
+    if (until && new Date(until) <= new Date()) {
+      await db.update(users).set({ premium: false, premiumUntil: null }).where(eq(users.id, userId));
+      return true;
+    }
+    return false;
+  } catch {
+    console.warn("[DB] Query failed for disableExpiredPremium");
+    return false;
   }
-  return false;
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {
@@ -90,15 +95,25 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
+  try {
+    const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+    return result.length > 0 ? result[0] : undefined;
+  } catch {
+    console.warn("[DB] Query failed for getUserByOpenId");
+    return undefined;
+  }
 }
 
 export async function getUserByEmail(email: string) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
+  try {
+    const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    return result.length > 0 ? result[0] : undefined;
+  } catch {
+    console.warn("[DB] Query failed for getUserByEmail");
+    return undefined;
+  }
 }
 
 // ── SALÁRIOS ──────────────────────────────────────────────────────────────────
@@ -311,38 +326,58 @@ export async function deleteGoal(id: number, userId: number) {
 export async function activatePremium(userId: number, months: number, asaasSubscriptionId?: string) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
-  const now = new Date();
-  const until = new Date(now.setMonth(now.getMonth() + months));
-  const updateData: Record<string, unknown> = {
-    premium: true,
-    premiumUntil: until,
-  };
-  if (asaasSubscriptionId) {
-    updateData.asaasSubscriptionId = asaasSubscriptionId;
+  try {
+    const now = new Date();
+    const until = new Date(now.setMonth(now.getMonth() + months));
+    const updateData: Record<string, unknown> = {
+      premium: true,
+      premiumUntil: until,
+    };
+    if (asaasSubscriptionId) {
+      updateData.asaasSubscriptionId = asaasSubscriptionId;
+    }
+    await db.update(users).set(updateData).where(eq(users.id, userId));
+    return until;
+  } catch (error) {
+    console.error("[DB] Failed to activate premium:", error);
+    throw error;
   }
-  await db.update(users).set(updateData).where(eq(users.id, userId));
-  return until;
 }
 
 export async function deactivatePremium(userId: number) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
-  await db.update(users).set({ premium: false, premiumUntil: null }).where(eq(users.id, userId));
+  try {
+    await db.update(users).set({ premium: false, premiumUntil: null }).where(eq(users.id, userId));
+  } catch (error) {
+    console.error("[DB] Failed to deactivate premium:", error);
+    throw error;
+  }
 }
 
 export async function updateAsaasCustomerId(userId: number, asaasCustomerId: string) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
-  await db.update(users).set({ asaasCustomerId }).where(eq(users.id, userId));
+  try {
+    await db.update(users).set({ asaasCustomerId }).where(eq(users.id, userId));
+  } catch (error) {
+    console.error("[DB] Failed to update Asaas customer ID:", error);
+    throw error;
+  }
 }
 
 export async function getExpiredPremiumUsers() {
   const db = await getDb();
   if (!db) return [];
-  return db
-    .select()
-    .from(users)
-    .where(and(eq(users.premium, true), isNotNull(users.premiumUntil)));
+  try {
+    return db
+      .select()
+      .from(users)
+      .where(and(eq(users.premium, true), isNotNull(users.premiumUntil)));
+  } catch (error) {
+    console.error("[DB] Failed to get expired premium users:", error);
+    return [];
+  }
 }
 
 // ── CATEGORIAS PERSONALIZADAS (Premium) ──────────────────────────────────────
