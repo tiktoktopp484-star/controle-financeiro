@@ -282,6 +282,9 @@ function DashboardLayoutContent({
                 </div>
               </div>
             </div>
+            <button onClick={() => setShowChangePwd(true)} className="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-accent transition-colors" style={{color: "#C9A84C"}} title="Alterar Senha">
+              <Lock className="h-4 w-4" />
+            </button>
           </div>
         )}
         <main className="flex-1 p-4">{children}</main>
