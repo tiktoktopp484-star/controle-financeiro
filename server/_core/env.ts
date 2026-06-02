@@ -12,4 +12,5 @@ export const ENV = {
   get appUrl() { return process.env.APP_URL ?? "http://localhost:3000"; },
   get whatsappPhone() { return process.env.WHATSAPP_PHONE ?? ""; },
   get whatsappApiKey() { return process.env.WHATSAPP_API_KEY ?? ""; },
+  get resendApiKey() { return process.env.RESEND_API_KEY ?? ""; },
 };

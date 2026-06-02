@@ -8,6 +8,7 @@ import { sdk } from "./_core/sdk";
 import { ENV } from "./_core/env";
 import { authenticateUser, registerUser, getUserByEmail, deleteUserByEmail, updateLocalUserPremium, updateUserPaymentReceipt, markTrialUsed, resetPassword } from "./authStore";
 import { sendWhatsApp } from "./_core/notification";
+import { sendPasswordResetEmail } from "./email";
 import {
   addCard,
   addDebt,
@@ -162,8 +163,11 @@ export const appRouter = router({
       .input(z.object({ email: z.string().email("Email inválido") }))
       .mutation(async ({ input }) => {
         const newPassword = await resetPassword(input.email);
-        await sendWhatsApp(`[CF] Senha redefinida para ${input.email}: ${newPassword}`);
-        return { newPassword, message: "Senha redefinida com sucesso" };
+        const emailed = await sendPasswordResetEmail(input.email, newPassword);
+        if (!emailed) {
+          await sendWhatsApp(`[CF] Senha redefinida para ${input.email}: ${newPassword}`);
+        }
+        return { message: emailed ? "Nova senha enviada para seu email" : "Senha redefinida. Verifique o WhatsApp do admin." };
       }),
 
     logout: publicProcedure.mutation(({ ctx }) => {

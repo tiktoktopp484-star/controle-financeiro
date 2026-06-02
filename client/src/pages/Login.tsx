@@ -33,6 +33,15 @@ export default function Login() {
     },
   });
 
+  const resetPwdMut = trpc.auth.resetPassword.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.message);
+    },
+    onError: (err) => {
+      toast.error(err.message);
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (mode === "login") {
@@ -42,7 +51,15 @@ export default function Login() {
     }
   };
 
-  const isPending = loginMut.isPending || registerMut.isPending;
+  const handleForgotPassword = () => {
+    if (!email) {
+      toast.error("Digite seu email primeiro");
+      return;
+    }
+    resetPwdMut.mutate({ email });
+  };
+
+  const isPending = loginMut.isPending || registerMut.isPending || resetPwdMut.isPending;
 
   return (
     <div
@@ -234,6 +251,18 @@ export default function Login() {
                 </button>
               </div>
             </div>
+
+            {mode === "login" && (
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={resetPwdMut.isPending}
+                className="text-xs font-medium transition-all hover:opacity-70 self-end -mt-2"
+                style={{ color: "#C9A84C" }}
+              >
+                {resetPwdMut.isPending ? "Enviando..." : "Esqueceu a senha?"}
+              </button>
+            )}
 
             <button
               type="submit"
