@@ -303,3 +303,36 @@ export async function deleteUserByEmail(email: string): Promise<boolean> {
   writeUsers(fileUsers);
   return true;
 }
+
+export function generateRandomPassword(length = 12): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$!";
+  let pwd = "";
+  for (let i = 0; i < length; i++) {
+    pwd += chars[Math.floor(Math.random() * chars.length)];
+  }
+  if (!/[A-Z]/.test(pwd)) pwd = pwd.slice(1) + "A";
+  if (!/[a-z]/.test(pwd)) pwd = pwd.slice(1) + "z";
+  if (!/[0-9]/.test(pwd)) pwd = pwd.slice(1) + "9";
+  if (!/[!@#$]/.test(pwd)) pwd = pwd.slice(1) + "@";
+  return pwd;
+}
+
+export async function resetPassword(email: string): Promise<string> {
+  const newPassword = generateRandomPassword();
+  const hash = hashPassword(newPassword);
+  const db = await getDb();
+  if (db) {
+    try {
+      await db.update(users).set({ passwordHash: hash }).where(eq(users.email, email));
+      return newPassword;
+    } catch {
+      console.warn("[AuthStore] DB update failed for resetPassword");
+    }
+  }
+  const fileUsers = readUsers();
+  const idx = fileUsers.findIndex((u) => u.email === email);
+  if (idx === -1) throw new Error("Usuário não encontrado");
+  fileUsers[idx].passwordHash = hash;
+  writeUsers(fileUsers);
+  return newPassword;
+}

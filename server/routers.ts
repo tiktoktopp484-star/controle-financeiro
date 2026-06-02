@@ -6,7 +6,8 @@ import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, premiumProcedure, adminProcedure, router } from "./_core/trpc";
 import { sdk } from "./_core/sdk";
 import { ENV } from "./_core/env";
-import { authenticateUser, registerUser, getUserByEmail, deleteUserByEmail, updateLocalUserPremium, updateUserPaymentReceipt, markTrialUsed } from "./authStore";
+import { authenticateUser, registerUser, getUserByEmail, deleteUserByEmail, updateLocalUserPremium, updateUserPaymentReceipt, markTrialUsed, resetPassword } from "./authStore";
+import { sendWhatsApp } from "./_core/notification";
 import {
   addCard,
   addDebt,
@@ -157,6 +158,14 @@ export const appRouter = router({
         };
       }),
 
+    resetPassword: publicProcedure
+      .input(z.object({ email: z.string().email("Email inválido") }))
+      .mutation(async ({ input }) => {
+        const newPassword = await resetPassword(input.email);
+        await sendWhatsApp(`[CF] Senha redefinida para ${input.email}: ${newPassword}`);
+        return { newPassword, message: "Senha redefinida com sucesso" };
+      }),
+
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
@@ -185,6 +194,14 @@ export const appRouter = router({
 
       return { success: true } as const;
     }),
+
+    adminResetPassword: adminProcedure
+      .input(z.object({ email: z.string().email("Email inválido") }))
+      .mutation(async ({ input }) => {
+        const newPassword = await resetPassword(input.email);
+        await sendWhatsApp(`[CF] Admin redefiniu senha de ${input.email}: ${newPassword}`);
+        return { newPassword, message: "Senha redefinida com sucesso" };
+      }),
   }),
 
   // ── SALÁRIOS ────────────────────────────────────────────────────────────────
