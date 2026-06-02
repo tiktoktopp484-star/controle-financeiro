@@ -399,7 +399,7 @@ export async function getAllUsers() {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
   return await db
-    .select({ id: users.id, name: users.name, email: users.email, premium: users.premium, premiumUntil: users.premiumUntil, role: users.role })
+    .select({ id: users.id, name: users.name, email: users.email, premium: users.premium, premiumUntil: users.premiumUntil, role: users.role, paymentReceiptUrl: users.paymentReceiptUrl })
     .from(users)
     .orderBy(users.email);
 }

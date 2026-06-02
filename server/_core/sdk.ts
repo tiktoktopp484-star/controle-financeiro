@@ -286,6 +286,7 @@ class SDKServer {
             trialUsed: localUser.trialUsed,
             asaasCustomerId: null,
             asaasSubscriptionId: null,
+            paymentReceiptUrl: localUser.paymentReceiptUrl ?? null,
             role: localUser.role,
             createdAt: new Date(localUser.createdAt),
             updatedAt: new Date(localUser.updatedAt),

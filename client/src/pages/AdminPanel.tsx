@@ -8,6 +8,7 @@ type Props = {
 
 export default function AdminPanel({ onClose }: Props) {
   const [search, setSearch] = useState("");
+  const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
 
   const { data: users = [], isLoading } = trpc.admin.listUsers.useQuery();
   const activateMut = trpc.admin.activateUserPremium.useMutation({
@@ -22,6 +23,9 @@ export default function AdminPanel({ onClose }: Props) {
       u.email?.toLowerCase().includes(search.toLowerCase()) ||
       u.name?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const usersWithPendingReceipt = users.filter((u) => u.paymentReceiptUrl && !u.premium);
+  const hasPending = usersWithPendingReceipt.length > 0;
 
   return (
     <div
@@ -54,6 +58,13 @@ export default function AdminPanel({ onClose }: Props) {
           <p className="text-center text-xs mt-1" style={{ color: "rgba(226,196,122,0.7)" }}>
             Gerenciar usuários — ativar Premium
           </p>
+          {hasPending && (
+            <div className="text-center mt-2">
+              <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold" style={{ background: "#C0392B", color: "#fff" }}>
+                {usersWithPendingReceipt.length} comprovante(s) pendente(s)
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="p-5 space-y-4">
@@ -105,22 +116,67 @@ export default function AdminPanel({ onClose }: Props) {
                         ADMIN
                       </span>
                     )}
+                    {user.paymentReceiptUrl && !user.premium && (
+                      <span
+                        className="inline-block mt-1 ml-1 px-2 py-0.5 rounded text-[10px] font-bold"
+                        style={{ background: "#C0392B", color: "#fff" }}
+                      >
+                        📎 COMPROVANTE
+                      </span>
+                    )}
                   </div>
-                  {!user.premium && (
-                    <button
-                      onClick={() => activateMut.mutate({ email: user.email!, months: 1 })}
-                      disabled={activateMut.isPending}
-                      className="shrink-0 px-3 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 disabled:opacity-60"
-                      style={{ background: "rgba(26,39,68,0.08)", color: "#3D4F7C", border: "1px dashed rgba(26,39,68,0.2)" }}
-                    >
-                      Ativar Premium
-                    </button>
-                  )}
+                  <div className="shrink-0 flex gap-1">
+                    {user.paymentReceiptUrl && (
+                      <button
+                        onClick={() => setSelectedReceipt(user.paymentReceiptUrl!)}
+                        className="px-2 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
+                        style={{ background: "rgba(201,168,76,0.15)", color: "#C9A84C" }}
+                        title="Ver comprovante"
+                      >
+                        📎
+                      </button>
+                    )}
+                    {!user.premium && (
+                      <button
+                        onClick={() => activateMut.mutate({ email: user.email!, months: 1 })}
+                        disabled={activateMut.isPending}
+                        className="px-3 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 disabled:opacity-60"
+                        style={{ background: "rgba(26,39,68,0.08)", color: "#3D4F7C", border: "1px dashed rgba(26,39,68,0.2)" }}
+                      >
+                        Ativar Premium
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
+
+        {/* Receipt Modal */}
+        {selectedReceipt && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.8)" }}
+            onClick={() => setSelectedReceipt(null)}
+          >
+            <div className="relative max-w-md max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => setSelectedReceipt(null)}
+                className="absolute -top-3 -right-3 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold z-10"
+                style={{ background: "#C0392B", color: "#fff" }}
+              >
+                ✕
+              </button>
+              <img
+                src={selectedReceipt}
+                alt="Comprovante de pagamento"
+                className="rounded-xl max-w-full max-h-[85vh]"
+                style={{ objectFit: "contain" }}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

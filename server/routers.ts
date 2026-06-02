@@ -6,7 +6,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, premiumProcedure, adminProcedure, router } from "./_core/trpc";
 import { sdk } from "./_core/sdk";
 import { ENV } from "./_core/env";
-import { authenticateUser, registerUser, getUserByEmail, deleteUserByEmail, updateLocalUserPremium } from "./authStore";
+import { authenticateUser, registerUser, getUserByEmail, deleteUserByEmail, updateLocalUserPremium, updateUserPaymentReceipt, markTrialUsed } from "./authStore";
 import {
   addCard,
   addDebt,
@@ -78,7 +78,7 @@ export const appRouter = router({
             user.role = "admin";
           }
         } else if (user.role === "admin") {
-          await updateLocalUserRole(user.email, "user");
+          if (user.email) await updateLocalUserRole(user.email, "user");
           user.role = "user";
         }
       } catch {}
@@ -527,15 +527,9 @@ export const appRouter = router({
       const trialUntil = new Date(now.setDate(now.getDate() + 1));
       if (user.email) {
         await updateLocalUserPremium(user.email, true, trialUntil.toISOString());
-      }
-      try {
-        const dbUser = await getUserByEmail(user.email!);
-        if (dbUser) {
-          const { activatePremium } = await import("./db");
-          await activatePremium(user.id, 0);
-        }
-      } catch {
-        // DB not available
+        await markTrialUsed(user.email);
+      } else {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Email não encontrado" });
       }
       return { success: true, premiumUntil: trialUntil.toISOString() };
     }),
@@ -555,15 +549,34 @@ export const appRouter = router({
       };
     }),
 
+    uploadPaymentReceipt: protectedProcedure
+      .input(z.object({ imageBase64: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const user = ctx.user!;
+        if (!user.email) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Email não encontrado" });
+        }
+        const { saveBase64Image } = await import("./localUpload");
+        const url = await saveBase64Image(input.imageBase64);
+        await updateUserPaymentReceipt(user.email, url);
+        return { success: true, url };
+      }),
+
     requestActivation: protectedProcedure.mutation(async ({ ctx }) => {
       const user = ctx.user!;
       if (!user.email) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Email não encontrado" });
       }
-      const msg = `🔔 Novo pedido Premium!\n\nEmail: ${user.email}\nNome: ${user.name || "—"}\n\nAtive pelo painel Admin no app.`;
+      const stored = await getUserByEmail(user.email);
+      const receiptUrl = stored?.paymentReceiptUrl;
+      let msg = `🔔 Novo pedido Premium!\n\nEmail: ${user.email}\nNome: ${user.name || "—"}`;
+      if (receiptUrl) {
+        msg += `\n📎 Comprovante: ${ENV.appUrl}${receiptUrl}`;
+      }
+      msg += `\n\nAtive pelo painel Admin no app.`;
       const { sendWhatsApp } = await import("./_core/notification");
       const sent = await sendWhatsApp(msg);
-      return { success: true, notified: sent };
+      return { success: true, notified: sent, receiptUrl };
     }),
   }),
 

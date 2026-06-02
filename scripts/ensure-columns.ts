@@ -22,6 +22,7 @@ async function main() {
     { name: "premium", definition: "ADD `premium` boolean DEFAULT false NOT NULL" },
     { name: "premiumUntil", definition: "ADD `premiumUntil` timestamp NULL" },
     { name: "trialUsed", definition: "ADD `trialUsed` boolean DEFAULT false NOT NULL" },
+    { name: "paymentReceiptUrl", definition: "ADD `paymentReceiptUrl` text" },
     { name: "asaasCustomerId", definition: "ADD `asaasCustomerId` varchar(64)" },
     { name: "asaasSubscriptionId", definition: "ADD `asaasSubscriptionId` varchar(64)" },
   ];

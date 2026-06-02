@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -34,6 +34,12 @@ export default function PremiumPlans({ onClose }: Props) {
   const [step, setStep] = useState<"plans" | "payment" | "success">("plans");
   const [processing, setProcessing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const uploadReceiptMut = trpc.premium.uploadPaymentReceipt.useMutation();
 
   const manualActivateMut = trpc.premium.manualActivate.useMutation({
     onSuccess: () => {
@@ -95,6 +101,43 @@ export default function PremiumPlans({ onClose }: Props) {
 
   const handleTrial = () => {
     activateTrialMut.mutate();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const allowed = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+    if (!allowed.includes(file.type)) {
+      toast.error("Formato inválido. Use PNG, JPG, GIF ou WebP.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Arquivo muito grande. Máximo 5MB.");
+      return;
+    }
+    setReceiptFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setReceiptPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleRequestActivation = async () => {
+    setProcessing(true);
+    try {
+      let receiptUrl = "";
+      if (receiptFile && receiptPreview) {
+        setUploadingReceipt(true);
+        const result = await uploadReceiptMut.mutateAsync({ imageBase64: receiptPreview });
+        receiptUrl = result.url;
+        setUploadingReceipt(false);
+      }
+      await requestActivationMut.mutateAsync();
+      toast.success("Administrador notificado! Aguarde a ativação.");
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const handleCopyPix = () => {
@@ -301,9 +344,45 @@ export default function PremiumPlans({ onClose }: Props) {
               </button>
 
               {checkout.pixKey && (
-                <p className="text-xs" style={{ color: "#A09880" }}>
-                  Após enviar o PIX, clique abaixo para avisar o administrador.
-                </p>
+                <>
+                  <p className="text-xs" style={{ color: "#A09880" }}>
+                    Após enviar o PIX, anexe o comprovante abaixo e clique em solicitar ativação.
+                  </p>
+                  <div
+                    className="rounded-xl p-3 flex items-center gap-2 cursor-pointer"
+                    onClick={() => fileRef.current?.click()}
+                    style={{ background: "#F5F0E8", border: "1px dashed #C9A84C" }}
+                  >
+                    <span style={{ color: "#C9A84C" }}>📎</span>
+                    <span className="text-sm flex-1" style={{ color: receiptFile ? "#1A2744" : "#A09880" }}>
+                      {receiptFile ? receiptFile.name : "Anexar comprovante do pagamento"}
+                    </span>
+                    {receiptPreview && (
+                      <img
+                        src={receiptPreview}
+                        alt="preview"
+                        className="rounded"
+                        style={{ width: 32, height: 32, objectFit: "cover" }}
+                      />
+                    )}
+                    {receiptFile && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setReceiptFile(null); setReceiptPreview(null); }}
+                        className="text-xs"
+                        style={{ color: "#C0392B" }}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/gif,image/webp"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                </>
               )}
 
               {checkout.brCode && (
@@ -314,15 +393,15 @@ export default function PremiumPlans({ onClose }: Props) {
 
               {checkout?.pixKey && (
                 <button
-                  onClick={() => requestActivationMut.mutate()}
-                  disabled={requestActivationMut.isPending}
+                  onClick={handleRequestActivation}
+                  disabled={processing}
                   className="w-full py-3 rounded-xl text-sm font-bold transition-all active:scale-95 disabled:opacity-60"
                   style={{
                     background: "linear-gradient(135deg, #25D366 0%, #128C7E 100%)",
                     color: "#fff",
                   }}
                 >
-                  {requestActivationMut.isPending ? "Enviando..." : "💬 Solicitar Ativação via WhatsApp"}
+                  {processing ? (uploadingReceipt ? "Enviando comprovante..." : "Enviando...") : "💬 Solicitar Ativação via WhatsApp"}
                 </button>
               )}
 

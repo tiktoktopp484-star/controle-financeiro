@@ -20,6 +20,7 @@ export const users = mysqlTable("users", {
   premium: boolean("premium").default(false).notNull(),
   premiumUntil: timestamp("premiumUntil"),
   trialUsed: boolean("trialUsed").default(false).notNull(),
+  paymentReceiptUrl: text("paymentReceiptUrl"),
   asaasCustomerId: varchar("asaasCustomerId", { length: 64 }),
   asaasSubscriptionId: varchar("asaasSubscriptionId", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
