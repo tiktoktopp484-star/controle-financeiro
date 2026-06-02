@@ -255,6 +255,9 @@ export default function Home() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [showChangePwd, setShowChangePwd] = useState(false);
+  const [curPwd, setCurPwd] = useState("");
+  const [newPwd, setNewPwd] = useState("");
 
   const { data: expenses = [] } = trpc.expenses.list.useQuery();
   const { data: incomes = [] } = trpc.incomes.list.useQuery();
@@ -271,6 +274,11 @@ export default function Home() {
     onError: (err) => {
       toast.error(err.message);
     },
+  });
+
+  const changePwdMut = trpc.auth.changePassword.useMutation({
+    onSuccess: () => { toast.success("Senha alterada!"); setShowChangePwd(false); setCurPwd(""); setNewPwd(""); },
+    onError: (e) => toast.error(e.message),
   });
 
   const fmtCSV = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
@@ -385,6 +393,17 @@ export default function Home() {
               Admin
             </button>
           )}
+          <button
+            onClick={() => setShowChangePwd(true)}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95"
+            style={{
+              background: "rgba(26,39,68,0.08)",
+              color: "#3D4F7C",
+              border: "1px solid rgba(26,39,68,0.12)",
+            }}
+          >
+            Alterar Senha
+          </button>
           <button
             onClick={() => setShowDeleteConfirm(true)}
             className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95"
@@ -513,6 +532,23 @@ export default function Home() {
 
       {/* Admin Panel */}
       {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} />}
+
+      {/* Change Password Dialog */}
+      {showChangePwd && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(0,0,0,0.5)" }}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl" style={{ maxWidth: 360 }}>
+            <h3 className="text-lg font-bold mb-4" style={{ color: "#1A2744", fontFamily: "'Cormorant Garamond', serif" }}>Alterar Senha</h3>
+            <div className="flex flex-col gap-3">
+              <input className="w-full rounded-xl px-4 py-3 text-sm outline-none" style={{ background: "#F5F0E8", color: "#1A2744", border: "1px solid #E8E0D0" }} type="password" placeholder="Senha atual" value={curPwd} onChange={e => setCurPwd(e.target.value)} />
+              <input className="w-full rounded-xl px-4 py-3 text-sm outline-none" style={{ background: "#F5F0E8", color: "#1A2744", border: "1px solid #E8E0D0" }} type="password" placeholder="Nova senha (mín 4)" value={newPwd} onChange={e => setNewPwd(e.target.value)} minLength={4} />
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => { setShowChangePwd(false); setCurPwd(""); setNewPwd(""); }} className="flex-1 py-3 rounded-xl text-sm font-semibold" style={{ background: "#F5F0E8", color: "#6B6350", border: "1px solid #E8E0D0" }}>Cancelar</button>
+              <button onClick={() => changePwdMut.mutate({ currentPassword: curPwd, newPassword: newPwd })} disabled={!curPwd || newPwd.length < 4 || changePwdMut.isPending} className="flex-1 py-3 rounded-xl text-sm font-semibold" style={{ background: "linear-gradient(135deg, #1A2744, #243460)", color: "#E2C47A" }}>{changePwdMut.isPending ? "..." : "Alterar"}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
