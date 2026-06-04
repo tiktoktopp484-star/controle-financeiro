@@ -1,10 +1,3 @@
-let resendApiKey = "";
-
-function getResendApiKey() {
-  if (!resendApiKey) resendApiKey = process.env.RESEND_API_KEY || "";
-  return resendApiKey;
-}
-
 const appUrl = () => process.env.APP_URL || "https://controle-financeiro-x7lb.onrender.com";
 
 function buildHtml(newPassword: string) {
@@ -19,8 +12,41 @@ function buildHtml(newPassword: string) {
   `;
 }
 
+async function sendViaSendGrid(email: string, newPassword: string): Promise<boolean> {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) return false;
+
+  const fromEmail = process.env.FROM_EMAIL || "grupoofertas6@gmail.com";
+  const fromName = "Controle Financeiro";
+
+  try {
+    const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email }] }],
+        from: { email: fromEmail, name: fromName },
+        subject: "Sua nova senha - Controle Financeiro",
+        content: [{ type: "text/html", value: buildHtml(newPassword) }],
+      }),
+    });
+
+    if (res.ok) return true;
+
+    const text = await res.text();
+    console.warn("[Email] SendGrid error:", res.status, text);
+    return false;
+  } catch (err: any) {
+    console.warn("[Email] SendGrid fetch error:", err?.message || err);
+    return false;
+  }
+}
+
 async function sendViaResend(email: string, newPassword: string): Promise<boolean> {
-  const apiKey = getResendApiKey();
+  const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return false;
 
   const from = process.env.FROM_EMAIL || "Controle Financeiro <onboarding@resend.dev>";
@@ -51,15 +77,10 @@ async function sendViaResend(email: string, newPassword: string): Promise<boolea
   }
 }
 
-export async function sendResetLink(email: string, newPassword: string): Promise<boolean> {
-  // Tenta Resend via API HTTP direta
-  const ok = await sendViaResend(email, newPassword);
-  if (ok) return true;
-
-  // Se falhou, tenta nodemailer com Gmail
+async function sendViaGmail(email: string, newPassword: string): Promise<boolean> {
   try {
-    const nodemailer = await import("nodemailer");
-    const transporter = nodemailer.default.createTransport({
+    const nodemailer = (await import("nodemailer")).default;
+    const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
         user: process.env.GMAIL_USER,
@@ -78,7 +99,17 @@ export async function sendResetLink(email: string, newPassword: string): Promise
     return true;
   } catch (err: any) {
     console.warn("[Email] Gmail error:", err?.message || err);
+    return false;
   }
+}
+
+export async function sendResetLink(email: string, newPassword: string): Promise<boolean> {
+  // 1) SendGrid (via API HTTP)
+  if (await sendViaSendGrid(email, newPassword)) return true;
+  // 2) Resend
+  if (await sendViaResend(email, newPassword)) return true;
+  // 3) Gmail SMTP (fallback)
+  if (await sendViaGmail(email, newPassword)) return true;
 
   return false;
 }
