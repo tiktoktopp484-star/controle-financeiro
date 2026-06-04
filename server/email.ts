@@ -11,8 +11,8 @@ function getTransporter() {
     transporter = nodemailer.createTransport({
       service: "gmail",
       auth: { user, pass },
-      connectionTimeout: 5000,
-      greetingTimeout: 5000,
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
     });
   }
   return transporter;
@@ -42,7 +42,23 @@ function buildHtml(newPassword: string) {
 }
 
 export async function sendResetLink(email: string, newPassword: string): Promise<boolean> {
-  // Try Resend first (faster API-based)
+  // Tenta Gmail SMTP
+  const t = getTransporter();
+  if (t) {
+    try {
+      await t.sendMail({
+        from: `"Controle Financeiro" <${process.env.GMAIL_USER}>`,
+        to: email,
+        subject: "Sua nova senha - Controle Financeiro",
+        html: buildHtml(newPassword),
+      });
+      return true;
+    } catch (err: any) {
+      console.warn("[Email] Gmail SMTP error:", err?.message || err);
+    }
+  }
+
+  // Fallback: Resend
   const client = getResend();
   if (client) {
     try {
@@ -56,22 +72,6 @@ export async function sendResetLink(email: string, newPassword: string): Promise
       console.warn("[Email] Resend error:", error);
     } catch (err) {
       console.warn("[Email] Resend error:", err);
-    }
-  }
-
-  // Fallback to Gmail SMTP
-  const t = getTransporter();
-  if (t) {
-    try {
-      await t.sendMail({
-        from: `"Controle Financeiro" <${process.env.GMAIL_USER}>`,
-        to: email,
-        subject: "Sua nova senha - Controle Financeiro",
-        html: buildHtml(newPassword),
-      });
-      return true;
-    } catch (err) {
-      console.warn("[Email] Gmail SMTP error:", err);
     }
   }
 
