@@ -39,15 +39,6 @@ export default function Login() {
     },
   });
 
-  const resetPwdMut = trpc.auth.forgotPassword.useMutation({
-    onSuccess: (data) => {
-      toast.success(data.message);
-    },
-    onError: (err) => {
-      toast.error(err.message);
-    },
-  });
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (mode === "login") {
@@ -57,15 +48,7 @@ export default function Login() {
     }
   };
 
-  const handleForgotPassword = () => {
-    if (!email) {
-      toast.error("Digite seu email primeiro");
-      return;
-    }
-    resetPwdMut.mutate({ email });
-  };
-
-  const isPending = loginMut.isPending || registerMut.isPending || resetPwdMut.isPending;
+  const isPending = loginMut.isPending || registerMut.isPending;
 
   return (
     <div
@@ -268,18 +251,6 @@ export default function Login() {
                 />
                 Lembrar para login biométrico
               </label>
-            )}
-
-            {mode === "login" && (
-              <button
-                type="button"
-                onClick={handleForgotPassword}
-                disabled={resetPwdMut.isPending}
-                className="text-xs font-medium transition-all hover:opacity-70 self-end -mt-2"
-                style={{ color: "#C9A84C" }}
-              >
-                {resetPwdMut.isPending ? "Enviando..." : "Esqueceu a senha?"}
-              </button>
             )}
 
             {mode === "login" && (
