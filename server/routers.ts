@@ -7,7 +7,6 @@ import { protectedProcedure, publicProcedure, premiumProcedure, adminProcedure, 
 import { sdk } from "./_core/sdk";
 import { ENV } from "./_core/env";
 import { authenticateUser, registerUser, getUserByEmail, deleteUserByEmail, updateLocalUserPremium, updateUserPaymentReceipt, markTrialUsed, resetPassword, changePassword } from "./authStore";
-import { sendWhatsApp } from "./_core/notification";
 import { sendResetLink } from "./email";
 import {
   addCard,
@@ -166,9 +165,12 @@ export const appRouter = router({
         const newPassword = await resetPassword(input.email);
         const sent = await sendResetLink(input.email, newPassword);
         if (!sent) {
-          await sendWhatsApp(`[CF] Nova senha para ${input.email}: ${newPassword}`);
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Não foi possível enviar o email. Tente novamente mais tarde.",
+          });
         }
-        return { newPassword, message: sent ? "Nova senha enviada para seu email" : `Nova senha: ${newPassword}. Anote e faça login.` };
+        return { message: "Nova senha enviada para seu email" };
       }),
 
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -204,8 +206,14 @@ export const appRouter = router({
       .input(z.object({ email: z.string().email("Email inválido") }))
       .mutation(async ({ input }) => {
         const newPassword = await resetPassword(input.email);
-        await sendWhatsApp(`[CF] Admin redefiniu senha de ${input.email}: ${newPassword}`);
-        return { newPassword, message: "Senha redefinida com sucesso" };
+        const sent = await sendResetLink(input.email, newPassword);
+        if (!sent) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Não foi possível enviar o email. Tente novamente.",
+          });
+        }
+        return { message: "Senha redefinida com sucesso. Nova senha enviada para o email." };
       }),
     changePassword: protectedProcedure
       .input(z.object({
