@@ -1,48 +1,8 @@
-import nodemailer from "nodemailer";
-import { Resend } from "resend";
+let resendApiKey = "";
 
-let transporter465: nodemailer.Transporter | null = null;
-let transporter587: nodemailer.Transporter | null = null;
-
-function getTransporter465() {
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_PASS;
-  if (!user || !pass) return null;
-  if (!transporter465) {
-    transporter465 = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: { user, pass },
-      connectionTimeout: 10000,
-    });
-  }
-  return transporter465;
-}
-
-function getTransporter587() {
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_PASS;
-  if (!user || !pass) return null;
-  if (!transporter587) {
-    transporter587 = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
-      auth: { user, pass },
-      connectionTimeout: 10000,
-    });
-  }
-  return transporter587;
-}
-
-let resend: Resend | null = null;
-
-function getResend() {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return null;
-  if (!resend) resend = new Resend(apiKey);
-  return resend;
+function getResendApiKey() {
+  if (!resendApiKey) resendApiKey = process.env.RESEND_API_KEY || "";
+  return resendApiKey;
 }
 
 const appUrl = () => process.env.APP_URL || "https://controle-financeiro-x7lb.onrender.com";
@@ -59,54 +19,65 @@ function buildHtml(newPassword: string) {
   `;
 }
 
+async function sendViaResend(email: string, newPassword: string): Promise<boolean> {
+  const apiKey = getResendApiKey();
+  if (!apiKey) return false;
+
+  const from = process.env.FROM_EMAIL || "Controle Financeiro <onboarding@resend.dev>";
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: email,
+        subject: "Sua nova senha - Controle Financeiro",
+        html: buildHtml(newPassword),
+      }),
+    });
+
+    const data = await res.json();
+    if (res.ok) return true;
+
+    console.warn("[Email] Resend API error:", res.status, JSON.stringify(data));
+    return false;
+  } catch (err: any) {
+    console.warn("[Email] Resend fetch error:", err?.message || err);
+    return false;
+  }
+}
+
 export async function sendResetLink(email: string, newPassword: string): Promise<boolean> {
-  // Tenta Gmail SMTP porta 465 (SSL)
-  const t465 = getTransporter465();
-  if (t465) {
-    try {
-      await t465.sendMail({
-        from: `"Controle Financeiro" <${process.env.GMAIL_USER}>`,
-        to: email,
-        subject: "Sua nova senha - Controle Financeiro",
-        html: buildHtml(newPassword),
-      });
-      return true;
-    } catch (err: any) {
-      console.warn("[Email] Gmail 465 error:", err?.message || err);
-    }
-  }
+  // Tenta Resend via API HTTP direta
+  const ok = await sendViaResend(email, newPassword);
+  if (ok) return true;
 
-  // Tenta Gmail SMTP porta 587 (STARTTLS)
-  const t587 = getTransporter587();
-  if (t587) {
-    try {
-      await t587.sendMail({
-        from: `"Controle Financeiro" <${process.env.GMAIL_USER}>`,
-        to: email,
-        subject: "Sua nova senha - Controle Financeiro",
-        html: buildHtml(newPassword),
-      });
-      return true;
-    } catch (err: any) {
-      console.warn("[Email] Gmail 587 error:", err?.message || err);
-    }
-  }
+  // Se falhou, tenta nodemailer com Gmail
+  try {
+    const nodemailer = await import("nodemailer");
+    const transporter = nodemailer.default.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_PASS,
+      },
+      connectionTimeout: 15000,
+    });
 
-  // Fallback: Resend
-  const client = getResend();
-  if (client) {
-    try {
-      const { error } = await client.emails.send({
-        from: process.env.FROM_EMAIL || "Controle Financeiro <onboarding@resend.dev>",
-        to: email,
-        subject: "Sua nova senha - Controle Financeiro",
-        html: buildHtml(newPassword),
-      });
-      if (!error) return true;
-      console.warn("[Email] Resend error:", error);
-    } catch (err) {
-      console.warn("[Email] Resend error:", err);
-    }
+    await transporter.sendMail({
+      from: `"Controle Financeiro" <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: "Sua nova senha - Controle Financeiro",
+      html: buildHtml(newPassword),
+    });
+
+    return true;
+  } catch (err: any) {
+    console.warn("[Email] Gmail error:", err?.message || err);
   }
 
   return false;
