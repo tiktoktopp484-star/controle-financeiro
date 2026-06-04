@@ -12,58 +12,67 @@ function buildHtml(newPassword: string) {
   `;
 }
 
-async function sendViaMailjet(email: string, newPassword: string): Promise<boolean> {
-  const apiKey = process.env.MAILJET_API_KEY;
-  const secretKey = process.env.MAILJET_SECRET_KEY;
-  if (!apiKey || !secretKey) return false;
-
-  const fromEmail = process.env.FROM_EMAIL || "grupoofertas6@gmail.com";
-  const fromName = "Controle Financeiro";
+async function sendViaGmail(email: string, newPassword: string): Promise<boolean> {
+  try {
+    const nodemailer = (await import("nodemailer")).default;
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASS },
+      connectionTimeout: 15000,
+      family: 4,
+    });
+    await transporter.sendMail({
+      from: `"Controle Financeiro" <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: "Sua nova senha - Controle Financeiro",
+      html: buildHtml(newPassword),
+    });
+    return true;
+  } catch (err: any) {
+    console.warn("[Email] Gmail 465 error:", err?.message || err);
+  }
 
   try {
-    const res = await fetch("https://api.mailjet.com/v3.1/send", {
-      method: "POST",
-      headers: {
-        "Authorization": "Basic " + Buffer.from(`${apiKey}:${secretKey}`).toString("base64"),
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        Messages: [{
-          From: { Email: fromEmail, Name: fromName },
-          To: [{ Email: email }],
-          Subject: "Sua nova senha - Controle Financeiro",
-          HTMLPart: buildHtml(newPassword),
-        }],
-      }),
+    const nodemailer = (await import("nodemailer")).default;
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASS },
+      connectionTimeout: 15000,
+      family: 4,
     });
-
-    if (res.ok) return true;
-
-    const text = await res.text();
-    console.warn("[Email] Mailjet error:", res.status, text);
-    return false;
+    await transporter.sendMail({
+      from: `"Controle Financeiro" <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: "Sua nova senha - Controle Financeiro",
+      html: buildHtml(newPassword),
+    });
+    return true;
   } catch (err: any) {
-    console.warn("[Email] Mailjet fetch error:", err?.message || err);
-    return false;
+    console.warn("[Email] Gmail 587 error:", err?.message || err);
   }
+
+  return false;
 }
 
 async function sendViaResend(email: string, newPassword: string): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return false;
 
-  const from = process.env.FROM_EMAIL || "Controle Financeiro <onboarding@resend.dev>";
-
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ from, to: email, subject: "Sua nova senha - Controle Financeiro", html: buildHtml(newPassword) }),
+      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: process.env.FROM_EMAIL || "Controle Financeiro <onboarding@resend.dev>",
+        to: email,
+        subject: "Sua nova senha - Controle Financeiro",
+        html: buildHtml(newPassword),
+      }),
     });
-
     if (res.ok) return true;
     console.warn("[Email] Resend error:", res.status);
     return false;
@@ -73,28 +82,8 @@ async function sendViaResend(email: string, newPassword: string): Promise<boolea
   }
 }
 
-async function sendViaGmail(email: string, newPassword: string): Promise<boolean> {
-  try {
-    const nodemailer = (await import("nodemailer")).default;
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com", port: 587, secure: false,
-      auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASS },
-      connectionTimeout: 10000,
-    });
-    await transporter.sendMail({
-      from: `"Controle Financeiro" <${process.env.GMAIL_USER}>`,
-      to: email, subject: "Sua nova senha - Controle Financeiro", html: buildHtml(newPassword),
-    });
-    return true;
-  } catch (err: any) {
-    console.warn("[Email] Gmail error:", err?.message || err);
-    return false;
-  }
-}
-
 export async function sendResetLink(email: string, newPassword: string): Promise<boolean> {
-  if (await sendViaMailjet(email, newPassword)) return true;
-  if (await sendViaResend(email, newPassword)) return true;
   if (await sendViaGmail(email, newPassword)) return true;
+  if (await sendViaResend(email, newPassword)) return true;
   return false;
 }
