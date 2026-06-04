@@ -1,21 +1,39 @@
 import nodemailer from "nodemailer";
 import { Resend } from "resend";
 
-let transporter: nodemailer.Transporter | null = null;
+let transporter465: nodemailer.Transporter | null = null;
+let transporter587: nodemailer.Transporter | null = null;
 
-function getTransporter() {
+function getTransporter465() {
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_PASS;
   if (!user || !pass) return null;
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      service: "gmail",
+  if (!transporter465) {
+    transporter465 = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
       auth: { user, pass },
-      connectionTimeout: 15000,
-      greetingTimeout: 15000,
+      connectionTimeout: 10000,
     });
   }
-  return transporter;
+  return transporter465;
+}
+
+function getTransporter587() {
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_PASS;
+  if (!user || !pass) return null;
+  if (!transporter587) {
+    transporter587 = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: { user, pass },
+      connectionTimeout: 10000,
+    });
+  }
+  return transporter587;
 }
 
 let resend: Resend | null = null;
@@ -42,11 +60,11 @@ function buildHtml(newPassword: string) {
 }
 
 export async function sendResetLink(email: string, newPassword: string): Promise<boolean> {
-  // Tenta Gmail SMTP
-  const t = getTransporter();
-  if (t) {
+  // Tenta Gmail SMTP porta 465 (SSL)
+  const t465 = getTransporter465();
+  if (t465) {
     try {
-      await t.sendMail({
+      await t465.sendMail({
         from: `"Controle Financeiro" <${process.env.GMAIL_USER}>`,
         to: email,
         subject: "Sua nova senha - Controle Financeiro",
@@ -54,7 +72,23 @@ export async function sendResetLink(email: string, newPassword: string): Promise
       });
       return true;
     } catch (err: any) {
-      console.warn("[Email] Gmail SMTP error:", err?.message || err);
+      console.warn("[Email] Gmail 465 error:", err?.message || err);
+    }
+  }
+
+  // Tenta Gmail SMTP porta 587 (STARTTLS)
+  const t587 = getTransporter587();
+  if (t587) {
+    try {
+      await t587.sendMail({
+        from: `"Controle Financeiro" <${process.env.GMAIL_USER}>`,
+        to: email,
+        subject: "Sua nova senha - Controle Financeiro",
+        html: buildHtml(newPassword),
+      });
+      return true;
+    } catch (err: any) {
+      console.warn("[Email] Gmail 587 error:", err?.message || err);
     }
   }
 
