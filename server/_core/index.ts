@@ -46,6 +46,13 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   app.use("/uploads", express.static(getUploadsDir()));
+  // Privacy policy and account deletion pages
+  app.get("/privacidade", (_req, res) => {
+    res.sendFile(path.resolve(PROJECT_ROOT, "privacidade.html"));
+  });
+  app.get("/exclusao-conta", (_req, res) => {
+    res.sendFile(path.resolve(PROJECT_ROOT, "exclusao-conta.html"));
+  });
   registerStorageProxy(app);
   registerOAuthRoutes(app);
   registerOpenPixWebhook(app);
